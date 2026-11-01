@@ -21,3 +21,4 @@ tauri/gen/android/.gradle/
 .vscode/*
 !.vscode/extensions.json
 *.log
+*.bundle
