@@ -11,8 +11,8 @@ See [PLAN.md](./PLAN.md) for the architecture, rules spec and milestone plan.
 | Milestone | State |
 |-----------|-------|
 | M1 Engine + tests | done |
-| M2 Board render | next |
-| M3 Pass & Play | |
+| M2 Board render | done |
+| M3 Pass & Play | next |
 | M4 Animations | |
 | M5 Audio + haptics | |
 | M6 Bots, debug toolbar, i18n | |
