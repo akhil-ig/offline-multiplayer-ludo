@@ -4,6 +4,14 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing release tag to attach the builds to (e.g. v0.1.0). Leave empty to only upload workflow artifacts.'
+        required: false
+        default: ''
+
+env:
+  RELEASE_TAG: ${{ github.event.inputs.release_tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || '' }}
 
 permissions:
   contents: write
@@ -70,24 +78,46 @@ jobs:
       - name: Patch manifest (loopback cleartext, permissions, portrait)
         run: ./android/patch.sh
         working-directory: tauri
-      - name: Build APK (debug-signed, installs anywhere)
-        run: npx tauri android build --apk --debug --target aarch64 --target armv7
-        working-directory: tauri
       - name: Build APK (release, unsigned)
         run: npx tauri android build --apk --target aarch64 --target armv7
         working-directory: tauri
-      - name: Collect APKs
+      - name: Sign APK
+        # Uses the ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS secrets when
+        # present (stable signature, in-place updates). Otherwise signs with a throwaway key generated
+        # here: the APK installs fine, but a later build must be installed after uninstalling.
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
+          set -euo pipefail
+          BT="$ANDROID_SDK_ROOT/build-tools/34.0.0"
+          UNSIGNED=$(find tauri/gen/android/app/build/outputs/apk -name '*release-unsigned.apk' | head -1)
+          test -n "$UNSIGNED" || { echo "no unsigned release apk found"; find tauri/gen/android/app/build/outputs -name '*.apk'; exit 1; }
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > ks.jks
+            PASS="$KS_PASS"; ALIAS="${KS_ALIAS:-ludo}"; echo "signing with the repository keystore"
+          else
+            PASS="ludo-ephemeral"; ALIAS="ludo"
+            keytool -genkeypair -keystore ks.jks -alias "$ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$PASS" -keypass "$PASS" -dname "CN=Ludo, O=akhil-ig" >/dev/null
+            echo "signing with a throwaway key (add ANDROID_KEYSTORE_B64 secret for a stable one)"
+          fi
           mkdir -p out
-          find tauri/gen/android/app/build/outputs/apk -name '*.apk' -exec cp {} out/ \;
+          "$BT/zipalign" -p -f 4 "$UNSIGNED" out/aligned.apk
+          "$BT/apksigner" sign --ks ks.jks --ks-key-alias "$ALIAS" --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+            --out out/Ludo-${RELEASE_TAG:-dev}-android.apk out/aligned.apk
+          rm out/aligned.apk ks.jks
+          "$BT/apksigner" verify --print-certs out/*.apk | head -3
           ls -la out
       - uses: actions/upload-artifact@v4
         with:
-          name: android-apks
+          name: android-apk
           path: out/*.apk
       - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        if: env.RELEASE_TAG != ''
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           files: out/*.apk
           generate_release_notes: true
 
@@ -127,8 +157,9 @@ jobs:
             tauri/target/release/bundle/appimage/*.AppImage
             tauri/target/release/bundle/deb/*.deb
       - uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        if: env.RELEASE_TAG != ''
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           files: |
             tauri/target/release/bundle/appimage/*.AppImage
             tauri/target/release/bundle/deb/*.deb
