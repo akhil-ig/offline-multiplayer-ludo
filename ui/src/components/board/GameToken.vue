@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { GRID_SIZE, type Cell, type PlayerColor } from '@/engine'
 import { colorVars } from '@/utils/colors'
 
@@ -14,35 +14,81 @@ const props = defineProps<{
   scale?: number
   movable?: boolean
   dimmed?: boolean
+  /** Currently travelling: drawn above everything else. */
+  moving?: boolean
+  /** Bumped once per forward hop; triggers the parabolic bounce. */
+  hopTick?: number
+  /** Bumped once per reverse-zip cell when captured. */
+  zipTick?: number
+  /** How long the slide between two cells takes. */
+  moveMs?: number
+  /** Rendered board size in px; enables transform-based positioning (compositor only). */
+  boardPx: number
 }>()
 
 const emit = defineEmits<{ select: [tokenIndex: number] }>()
 
+const body = ref<HTMLElement | null>(null)
+
 /**
+ * Positioned purely with `transform` so sliding never triggers layout.
  * The button itself is scaled and offset (not just the visual body), so the
  * tap target of a stacked token never sits under a neighbour.
  */
 const style = computed(() => {
-  const unit = 100 / GRID_SIZE
+  const unitPx = props.boardPx / GRID_SIZE
   const scale = props.scale ?? 1
-  const size = unit * scale
-  const cx = (props.cell.col - 1 + 0.5 + (props.offsetX ?? 0)) * unit
-  const cy = (props.cell.row - 1 + 0.5 + (props.offsetY ?? 0)) * unit
+  const cx = (props.cell.col - 1 + 0.5 + (props.offsetX ?? 0)) * unitPx
+  const cy = (props.cell.row - 1 + 0.5 + (props.offsetY ?? 0)) * unitPx
   return {
-    left: `${cx - size / 2}%`,
-    top: `${cy - size / 2}%`,
-    width: `${size}%`,
-    height: `${size}%`,
+    width: `${unitPx}px`,
+    height: `${unitPx}px`,
+    transform: `translate(${(cx - unitPx / 2).toFixed(2)}px, ${(cy - unitPx / 2).toFixed(2)}px) scale(${scale})`,
+    '--move-ms': `${props.moveMs ?? 110}ms`,
     ...colorVars(props.color),
   }
 })
+
+const HOP: Keyframe[] = [
+  { transform: 'translateY(0) scale(1, 1)', offset: 0 },
+  { transform: 'translateY(-14px) scale(1.18, 1.18)', offset: 0.45 },
+  { transform: 'translateY(0) scale(1.14, 0.84)', offset: 0.8 },
+  { transform: 'translateY(0) scale(0.96, 1.06)', offset: 0.92 },
+  { transform: 'translateY(0) scale(1, 1)', offset: 1 },
+]
+
+const UNLOCK: Keyframe[] = [
+  { transform: 'translateY(0) scale(0.6)', offset: 0 },
+  { transform: 'translateY(-22px) scale(1.3)', offset: 0.5 },
+  { transform: 'translateY(0) scale(1.15, 0.85)', offset: 0.82 },
+  { transform: 'translateY(0) scale(1)', offset: 1 },
+]
+
+const ZIP: Keyframe[] = [
+  { transform: 'scale(0.92)', opacity: 0.85 },
+  { transform: 'scale(1)', opacity: 1 },
+]
+
+function animate(frames: Keyframe[], duration: number) {
+  if (!body.value || typeof body.value.animate !== 'function') return
+  body.value.animate(frames, { duration, easing: 'ease-out' })
+}
+
+watch(
+  () => props.hopTick,
+  () => animate(props.pos === 0 && (props.hopTick ?? 0) > 0 && props.moveMs === undefined ? UNLOCK : HOP, props.pos === 0 ? 220 : 130),
+)
+watch(
+  () => props.zipTick,
+  () => animate(ZIP, 60),
+)
 </script>
 
 <template>
   <button
     type="button"
     class="token"
-    :class="{ 'token--movable': movable, 'token--dimmed': dimmed }"
+    :class="{ 'token--movable': movable, 'token--dimmed': dimmed, 'token--moving': moving }"
     :style="style"
     :data-token="`${color}-${tokenIndex}`"
     :data-pos="pos"
@@ -51,7 +97,10 @@ const style = computed(() => {
     @click="emit('select', tokenIndex)"
   >
     <span class="token__ring" />
-    <span class="token__body">
+    <span
+      ref="body"
+      class="token__body"
+    >
       <span class="token__gloss" />
       <span class="token__pip" />
     </span>
@@ -61,17 +110,18 @@ const style = computed(() => {
 <style scoped>
 .token {
   position: absolute;
+  left: 0;
+  top: 0;
   padding: 0;
   border: 0;
   background: transparent;
   display: grid;
   place-items: center;
+  transform-origin: center;
   transition:
-    left 120ms ease,
-    top 120ms ease,
-    width 120ms ease,
-    height 120ms ease,
+    transform var(--move-ms) linear,
     opacity 200ms ease;
+  will-change: transform;
   pointer-events: none;
   z-index: 5;
 }
@@ -79,6 +129,9 @@ const style = computed(() => {
   pointer-events: auto;
   cursor: pointer;
   z-index: 7;
+}
+.token--moving {
+  z-index: 9;
 }
 .token--dimmed {
   opacity: 0.6;
@@ -131,6 +184,7 @@ const style = computed(() => {
   100% { opacity: 0; transform: scale(1.6); }
 }
 @media (prefers-reduced-motion: reduce) {
+  .token { transition: none; }
   .token--movable .token__ring { animation: none; opacity: 0.9; }
 }
 </style>

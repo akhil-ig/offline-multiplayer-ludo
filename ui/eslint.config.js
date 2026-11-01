@@ -15,6 +15,8 @@ export default tseslint.config(
   {
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     rules: {
+      // TypeScript already checks identifiers; this rule misfires on DOM lib types such as Keyframe.
+      'no-undef': 'off',
       'vue/multi-word-component-names': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },

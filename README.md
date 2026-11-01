@@ -13,8 +13,8 @@ See [PLAN.md](./PLAN.md) for the architecture, rules spec and milestone plan.
 | M1 Engine + tests | done |
 | M2 Board render | done |
 | M3 Pass & Play | done |
-| M4 Animations | next |
-| M5 Audio + haptics | |
+| M4 Animations | done |
+| M5 Audio + haptics | next |
 | M6 Bots, debug toolbar, i18n | |
 | M7 Rust server + LAN | |
 | M8 Tauri + CI/APK | |

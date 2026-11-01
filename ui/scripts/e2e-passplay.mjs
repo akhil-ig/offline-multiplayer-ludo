@@ -60,7 +60,7 @@ await check('roll 6: four red tokens become movable, tap one to unlock', async (
   await waitPos('red-0', 0)
   await waitPhase('roll')
   await waitTurn('red')
-  await page.waitForSelector('[data-toast]')
+  await page.waitForSelector('[data-banner]', { timeout: 4000 }) // "SIX! ROLL AGAIN"
 })
 
 await check('second 6 unlocks another token', async () => {
@@ -73,10 +73,9 @@ await check('second 6 unlocks another token', async () => {
 
 await check('third 6 forfeits the turn to yellow', async () => {
   await force(6)
+  await page.waitForFunction(() => document.querySelector('[data-banner]')?.textContent?.includes('THREE 6s'), null, { timeout: 4000 })
   await waitTurn('yellow')
   await waitPhase('roll')
-  const txt = await page.locator('[data-toast]').allInnerTexts()
-  if (!txt.join(' ').includes('Three 6s')) throw new Error(`missing toast: ${txt}`)
 })
 
 await check('yellow rolls 3 with everything in the yard: turn passes back', async () => {

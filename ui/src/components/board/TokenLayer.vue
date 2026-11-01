@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { YARD, cellForToken, cellKey, type Player } from '@/engine'
+import { ZIP_MS, STEP_MS, useAnimStore } from '@/stores/anim'
 import GameToken from './GameToken.vue'
+import ParticleBurst from './ParticleBurst.vue'
 
 const props = defineProps<{
   players: Player[]
@@ -11,6 +13,25 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ select: [tokenIndex: number] }>()
+
+const anim = useAnimStore()
+
+const layer = ref<HTMLElement | null>(null)
+const boardPx = ref(0)
+let ro: ResizeObserver | null = null
+
+onMounted(() => {
+  if (!layer.value) return
+  boardPx.value = layer.value.clientWidth
+  if (typeof ResizeObserver !== 'undefined') {
+    ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width
+      if (w) boardPx.value = w
+    })
+    ro.observe(layer.value)
+  }
+})
+onBeforeUnmount(() => ro?.disconnect())
 
 interface PlacedToken {
   key: string
@@ -25,7 +46,7 @@ interface PlacedToken {
   dimmed: boolean
 }
 
-/** Layout offsets for N tokens sharing one cell. */
+/** Layout for N tokens sharing one cell. Targets stay separate so each remains tappable. */
 const STACK_LAYOUT: Record<number, { scale: number; offsets: Array<[number, number]> }> = {
   1: { scale: 1, offsets: [[0, 0]] },
   2: {
@@ -58,12 +79,14 @@ const placed = computed<PlacedToken[]>(() => {
   const groups = new Map<string, PlacedToken[]>()
   const out: PlacedToken[] = []
   for (const p of props.players) {
-    p.tokens.forEach((pos, tokenIndex) => {
+    p.tokens.forEach((logicalPos, tokenIndex) => {
+      const key = `${p.color}-${tokenIndex}`
+      const pos = anim.display[key] ?? logicalPos
       const cell = cellForToken(p.color, pos, tokenIndex)
       const isCurrent = p.color === props.currentColor
       const movable = isCurrent && (props.movable?.includes(tokenIndex) ?? false)
       const t: PlacedToken = {
-        key: `${p.color}-${tokenIndex}`,
+        key,
         color: p.color,
         tokenIndex,
         cell,
@@ -75,8 +98,8 @@ const placed = computed<PlacedToken[]>(() => {
         dimmed: isCurrent && (props.movable?.length ?? 0) > 0 && !movable,
       }
       out.push(t)
-      // Yard slots are unique per token; everything else may stack.
-      if (pos !== YARD) {
+      // Yard slots are unique per token; everything else may stack. A travelling token never joins a stack.
+      if (pos !== YARD && anim.moving !== key) {
         const k = cellKey(cell)
         const g = groups.get(k) ?? []
         g.push(t)
@@ -100,7 +123,10 @@ const placed = computed<PlacedToken[]>(() => {
 </script>
 
 <template>
-  <div class="token-layer">
+  <div
+    ref="layer"
+    class="token-layer"
+  >
     <GameToken
       v-for="t in placed"
       :key="t.key"
@@ -113,7 +139,18 @@ const placed = computed<PlacedToken[]>(() => {
       :scale="t.scale"
       :movable="t.movable"
       :dimmed="t.dimmed"
+      :board-px="boardPx"
+      :moving="anim.moving === t.key"
+      :hop-tick="anim.hopTick[t.key]"
+      :zip-tick="anim.zipTick[t.key]"
+      :move-ms="anim.zipTick[t.key] && anim.moving !== t.key && anim.display[t.key] !== undefined ? ZIP_MS : STEP_MS"
       @select="emit('select', $event)"
+    />
+    <ParticleBurst
+      v-for="b in anim.bursts"
+      :key="b.id"
+      :cell="b.cell"
+      :color="b.color"
     />
   </div>
 </template>

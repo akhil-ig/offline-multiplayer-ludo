@@ -3,18 +3,21 @@ import { computed, ref } from 'vue'
 import { useGameStore } from '@/stores/game'
 import { useSettingsStore } from '@/stores/settings'
 import { useGameFlow } from '@/composables/useGameFlow'
+import { useAnimStore } from '@/stores/anim'
 import LudoBoard from '@/components/board/LudoBoard.vue'
 import PlayerCard from '@/components/hud/PlayerCard.vue'
 import TopBar from '@/components/hud/TopBar.vue'
 import ToastStack from '@/components/hud/ToastStack.vue'
 import WinScreen from '@/components/hud/WinScreen.vue'
 import DebugToolbar from '@/components/hud/DebugToolbar.vue'
+import EventBanner from '@/components/hud/EventBanner.vue'
 import SetupScreen from '@/components/screens/SetupScreen.vue'
 import type { NewPlayerSpec, PlayerColor } from '@/engine'
 
 const game = useGameStore()
 const settings = useSettingsStore()
 const flow = useGameFlow()
+const anim = useAnimStore()
 
 type Screen = 'setup' | 'game'
 const screen = ref<Screen>('setup')
@@ -71,6 +74,7 @@ const cardProps = (color: PlayerColor) => ({
     v-else
     class="app"
     :data-phase="game.phase"
+    :data-busy="flow.busy.value"
     :data-turn="activeColor"
   >
     <TopBar
@@ -101,13 +105,17 @@ const cardProps = (color: PlayerColor) => ({
         <div v-else />
       </div>
 
-      <div class="stage">
+      <div
+        class="stage"
+        :class="{ 'stage--shake': anim.shake }"
+      >
         <LudoBoard
           :players="game.players"
           :active-color="activeColor"
           :movable="flow.movable.value"
           @select="flow.move"
         />
+        <EventBanner />
       </div>
 
       <div class="row">
@@ -173,8 +181,22 @@ const cardProps = (color: PlayerColor) => ({
   gap: 0.5rem;
 }
 .stage {
+  position: relative;
   min-height: 0;
   display: grid;
   place-items: center;
+}
+.stage--shake {
+  animation: shake 180ms ease-in-out;
+}
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-5px, 2px); }
+  40% { transform: translate(5px, -2px); }
+  60% { transform: translate(-4px, -1px); }
+  80% { transform: translate(4px, 1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage--shake { animation: none; }
 }
 </style>
