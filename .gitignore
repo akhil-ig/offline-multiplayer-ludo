@@ -1,0 +1,23 @@
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# Rust
+target/
+Cargo.lock.bak
+
+# Tauri / Android
+tauri/gen/android/app/build/
+tauri/gen/android/.gradle/
+*.keystore
+*.jks
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
