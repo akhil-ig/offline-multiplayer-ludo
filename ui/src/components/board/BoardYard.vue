@@ -50,10 +50,13 @@ const style = computed(() => {
     0 0 22px 4px var(--c-light);
   z-index: 1;
 }
+/* Geometry is tied to the 6x6 cell grid so each slot circle is centred on the
+   cell a resting token occupies (local cells 2 and 5 -> 25% / 75% of the yard):
+   panel spans 10%-90%, slots are 1.2 cells wide, padding/gap derived from that. */
 .yard__panel {
   position: absolute;
-  inset: 16%;
-  border-radius: 18%;
+  inset: 10%;
+  border-radius: 16%;
   background: linear-gradient(160deg, #fffdf7 0%, #f3ecdc 100%);
   box-shadow:
     inset 0 3px 6px rgba(0, 0, 0, 0.12),
@@ -61,8 +64,8 @@ const style = computed(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  padding: 12%;
-  gap: 12%;
+  padding: 6.25%;
+  gap: 37.5%;
 }
 .yard__slot {
   border-radius: 9999px;

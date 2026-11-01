@@ -1,0 +1,12 @@
+{
+  "name": "ludo-tauri",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Tauri CLI pinned locally so generated Android/Gradle files record a stable CLI path.",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

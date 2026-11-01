@@ -7,9 +7,8 @@ so the host phone is simply the first client of the server that friends join.
 ## Desktop (Linux/macOS/Windows)
 
 ```bash
-npm i -g @tauri-apps/cli
 cd ui && npm run build
-cd ../tauri && cargo tauri build
+cd ../tauri && npm ci && npx tauri build
 ```
 
 ## Android APK
@@ -19,11 +18,11 @@ Prerequisites: Android SDK + NDK, Java 17, Rust targets
 
 ```bash
 cd ui && npm run build
-cd ../tauri
-cargo tauri icon icons/icon.png
-cargo tauri android init
+cd ../tauri && npm ci
+npx tauri icon icons/icon.png
+npx tauri android init
 ./android/patch.sh                 # loopback cleartext + permissions + portrait
-cargo tauri android build --apk --target aarch64 --target armv7
+npx tauri android build --apk --target aarch64 --target armv7
 ```
 
 The GitHub Actions `release.yml` workflow does exactly this on every `v*` tag

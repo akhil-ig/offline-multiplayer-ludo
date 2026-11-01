@@ -58,21 +58,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm i -g @tauri-apps/cli@^2
+      - name: Install Tauri CLI (local, so Gradle records an absolute CLI path)
+        run: npm ci
+        working-directory: tauri
       - name: Generate icons
-        run: tauri icon icons/icon.png
+        run: npx tauri icon icons/icon.png
         working-directory: tauri
       - name: Init Android project
-        run: tauri android init --ci
+        run: npx tauri android init --ci
         working-directory: tauri
       - name: Patch manifest (loopback cleartext, permissions, portrait)
         run: ./android/patch.sh
         working-directory: tauri
       - name: Build APK (debug-signed, installs anywhere)
-        run: tauri android build --apk --debug --target aarch64 --target armv7
+        run: npx tauri android build --apk --debug --target aarch64 --target armv7
         working-directory: tauri
       - name: Build APK (release, unsigned)
-        run: tauri android build --apk --target aarch64 --target armv7
+        run: npx tauri android build --apk --target aarch64 --target armv7
         working-directory: tauri
       - name: Collect APKs
         run: |
@@ -112,10 +114,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm i -g @tauri-apps/cli@^2
-      - run: tauri icon icons/icon.png
+      - run: npm ci
         working-directory: tauri
-      - run: tauri build
+      - run: npx tauri icon icons/icon.png
+        working-directory: tauri
+      - run: npx tauri build
         working-directory: tauri
       - uses: actions/upload-artifact@v4
         with:
