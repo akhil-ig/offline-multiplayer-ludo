@@ -21,7 +21,7 @@ export interface Banner {
   color: PlayerColor
 }
 
-export type AnimHook = 'hop' | 'unlock' | 'capture' | 'zip' | 'goal' | 'land' | 'banner'
+export type AnimHook = 'dice' | 'hop' | 'unlock' | 'capture' | 'zip' | 'goal' | 'land' | 'banner' | 'win' | 'fail' | 'tap'
 type HookFn = (detail: { step?: number; color?: PlayerColor }) => void
 
 const tokenKey = (color: PlayerColor, token: number) => `${color}-${token}`
@@ -171,11 +171,13 @@ export const useAnimStore = defineStore('anim', () => {
             if (!reduced) await sleep(260)
             break
           case 'threeSixes':
+            emit('fail', { color: e.player })
             showBanner({ text: 'OOPS! THREE 6s', emoji: '😵', color: e.player })
             if (!reduced) await sleep(420)
             break
           case 'finished':
             if (e.rank === 1) {
+              emit('win', { color: e.player })
               showBanner({ text: `${names(e.player).toUpperCase()} WINS!`, emoji: '🏆', color: e.player })
               fireConfetti(true)
               if (!reduced) await sleep(500)
@@ -202,5 +204,5 @@ export const useAnimStore = defineStore('anim', () => {
     shake.value = false
   }
 
-  return { display, hopTick, zipTick, moving, busy, shake, banner, bursts, reduced, on, prepare, play, reset }
+  return { display, hopTick, zipTick, moving, busy, shake, banner, bursts, reduced, on, trigger: emit, prepare, play, reset }
 })

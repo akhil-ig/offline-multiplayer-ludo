@@ -28,6 +28,8 @@ for (const s of sizes) {
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto(base, { waitUntil: 'networkidle' })
+  await page.screenshot({ path: join(out, `${s.name}-setup.png`) })
+  await page.locator('[data-action="start"]').click()
   await page.waitForSelector('[data-token="red-0"]')
   await page.screenshot({ path: join(out, `${s.name}.png`) })
   const tokenCount = await page.locator('[data-token]').count()

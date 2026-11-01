@@ -80,6 +80,7 @@ export function useGameFlow() {
   function applyRoll(value?: number) {
     if (!canRoll.value) return
     rolling.value = true
+    anim.trigger('dice')
     later(DICE_ROLL_MS, () => {
       rolling.value = false
       void perform(() => (value === undefined ? game.roll() : game.rollForced(value)))

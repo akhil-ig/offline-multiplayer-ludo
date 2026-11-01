@@ -14,7 +14,8 @@
     "typecheck": "vue-tsc -b --noEmit",
     "screenshot": "node scripts/screenshot.mjs http://localhost:4173 ../docs/screenshots",
     "e2e": "node scripts/e2e-passplay.mjs http://localhost:4173",
-    "anim-check": "node scripts/anim-check.mjs http://localhost:4173 ../docs/screenshots"
+    "anim-check": "node scripts/anim-check.mjs http://localhost:4173 ../docs/screenshots",
+    "sound-check": "node scripts/sound-check.mjs http://localhost:4173"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

@@ -4,6 +4,7 @@ import { useGameStore } from '@/stores/game'
 import { useSettingsStore } from '@/stores/settings'
 import { useGameFlow } from '@/composables/useGameFlow'
 import { useAnimStore } from '@/stores/anim'
+import { useFeedback } from '@/composables/useFeedback'
 import LudoBoard from '@/components/board/LudoBoard.vue'
 import PlayerCard from '@/components/hud/PlayerCard.vue'
 import TopBar from '@/components/hud/TopBar.vue'
@@ -18,11 +19,13 @@ const game = useGameStore()
 const settings = useSettingsStore()
 const flow = useGameFlow()
 const anim = useAnimStore()
+useFeedback()
 
 type Screen = 'setup' | 'game'
 const screen = ref<Screen>('setup')
 
 function start(players: NewPlayerSpec[]) {
+  anim.trigger('tap')
   game.newGame({
     players,
     settings: { blockingRule: settings.blockingRule, endAtFirstWinner: settings.endAtFirstWinner, autoMoveSingle: settings.autoMoveSingle },
