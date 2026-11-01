@@ -175,6 +175,47 @@ await check('room pill opens the lobby modal with both players connected', async
   if (!txt.includes(code) || !txt.includes('Kajal')) throw new Error(`modal text: ${txt}`)
 })
 
+await check('a second app instance (its own server) joins by host address and lands on the host\'s page', async () => {
+  // Phone B runs the app too: its page is served by ITS server, where the room does not exist.
+  const port2 = port + 1
+  const server2 = spawn(bin, ['--port', String(port2), '--bind', '127.0.0.1', '--advertise', '127.0.0.1'], { stdio: 'ignore' })
+  process.on('exit', () => server2.kill())
+  for (let i = 0; i < 50; i++) {
+    try {
+      if ((await fetch(`http://127.0.0.1:${port2}/api/info`)).ok) break
+    } catch {
+      /* not up yet */
+    }
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  const D = await mk('host2')
+  await D.page.goto(`${base}/`, { waitUntil: 'networkidle' })
+  await D.page.locator('[data-lan-name]').fill('Neha')
+  await D.page.locator('[data-action="lan-host"]').click()
+  await D.page.waitForFunction(() => /^[A-Z2-9]{4}$/.test(document.querySelector('[data-room-code]')?.textContent ?? ''), null, { timeout: 5000 })
+  const code2 = await D.page.locator('[data-room-code]').innerText()
+
+  const C = await mk('app-joiner')
+  await C.page.goto(`http://127.0.0.1:${port2}/`, { waitUntil: 'networkidle' })
+  if (!(await C.page.locator('[data-lan-host]').count())) throw new Error('host address field missing on a locally served app')
+  // Plain code join against its own server must fail with the helpful hint.
+  await C.page.locator('[data-lan-name]').fill('Ravi')
+  await C.page.locator('[data-lan-code]').fill(code2)
+  await C.page.locator('[data-action="lan-join"]').click()
+  await C.page.waitForSelector('[data-lan-error]', { timeout: 5000 })
+  // Now with the host address: the app navigates to the host's server and auto-joins.
+  await C.page.locator('[data-lan-host]').fill(`127.0.0.1:${port}`)
+  await C.page.locator('[data-action="lan-join"]').click()
+  await C.page.waitForURL((u) => u.port === String(port), { timeout: 8000 })
+  await C.page.waitForSelector('[data-lobby-player="Ravi"]', { timeout: 8000 })
+  await D.page.waitForSelector('[data-lobby-player="Ravi"]', { timeout: 8000 })
+  if (!(await C.page.locator('[data-lobby-player="Neha"]').count())) throw new Error('joiner does not see host')
+  if (C.errors.length || D.errors.length) throw new Error([...C.errors, ...D.errors].join('\n'))
+  await C.ctx.close()
+  await D.ctx.close()
+  server2.kill()
+})
+
 await check('no console errors on either device', async () => {
   const all = [...A.errors, ...B.errors]
   if (all.length) throw new Error(all.join('\n'))

@@ -35,6 +35,7 @@ const lobbyOpen = ref(false)
 const lobbyBots = ref(0)
 const showDebug = computed(() => DEBUG || settings.debugToolbar)
 const prefillRoom = new URLSearchParams(location.search).get('room')?.toUpperCase() ?? ''
+const prefillName = new URLSearchParams(location.search).get('name') ?? ''
 const rejoinCode = ref(net.savedSeat()?.code ?? '')
 
 /** Seat colours for N players: 2P is the classic diagonal. */
@@ -193,6 +194,7 @@ const lobbyUrl = computed(() => net.joinUrl || `${location.protocol}//${location
     :can-resume="game.hasSave"
     :rejoin-code="rejoinCode"
     :prefill-room="prefillRoom"
+    :prefill-name="prefillName"
     :lan-error="lanError"
     @start="start"
     @resume="resume"

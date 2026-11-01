@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { Bot, Languages, LogIn, Play, RotateCcw, User, Users, Wifi } from 'lucide-vue-next'
 import { COLORS, type NewPlayerSpec, type PlayerColor } from '@/engine'
 import { colorVars } from '@/utils/colors'
 import { useSettingsStore } from '@/stores/settings'
 import { useI18n } from '@/i18n'
 
-const props = defineProps<{ canResume: boolean; rejoinCode?: string; prefillRoom?: string; lanError?: string }>()
+const props = defineProps<{ canResume: boolean; rejoinCode?: string; prefillRoom?: string; prefillName?: string; lanError?: string }>()
 const emit = defineEmits<{
   start: [players: NewPlayerSpec[]]
   resume: []
@@ -28,9 +28,42 @@ const seatsFor: Record<number, PlayerColor[]> = {
 const seats = computed(() => seatsFor[count.value])
 
 const names = reactive<Record<PlayerColor, string>>({ red: '', green: '', yellow: '', blue: '' })
-const lanName = ref('')
+const lanName = ref(props.prefillName ?? '')
 const lanCode = ref(props.prefillRoom ?? '')
+const hostAddr = ref('')
 const canJoin = computed(() => lanCode.value.trim().length === 4)
+/** The Tauri app and `cargo run` serve from this device; a friend's room lives on *their* server. */
+const servedLocally = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname)
+
+/**
+ * Joining a room that lives on another phone means loading that phone's page.
+ * Accepts "192.168.43.1", "192.168.43.1:7878" or a full URL pasted from the QR.
+ */
+function join() {
+  const code = lanCode.value.trim().toUpperCase()
+  const addr = hostAddr.value.trim()
+  if (addr) {
+    const withScheme = /^https?:\/\//i.test(addr) ? addr : `http://${addr}`
+    try {
+      const u = new URL(withScheme)
+      if (!u.port && !/^https?:\/\/[^/]+:\d+/.test(withScheme)) u.port = '7878'
+      if (u.origin !== location.origin) {
+        u.pathname = '/'
+        u.search = `?room=${code}&name=${encodeURIComponent(lanName.value)}`
+        location.href = u.toString()
+        return
+      }
+    } catch {
+      /* fall through and try the local server */
+    }
+  }
+  emit('join', code, lanName.value)
+}
+
+onMounted(() => {
+  // Arrived via a host's QR/link with a name already chosen: join straight away.
+  if (props.prefillRoom && props.prefillName) emit('join', props.prefillRoom, props.prefillName)
+})
 const bots = reactive<Record<PlayerColor, boolean>>({ red: false, green: false, yellow: false, blue: false })
 
 function start() {
@@ -112,18 +145,33 @@ function start() {
           class="lan__btn"
           :disabled="!canJoin"
           data-action="lan-join"
-          @click="emit('join', lanCode, lanName)"
+          @click="join"
         >
           <LogIn :size="15" />
           {{ t('joinRoom') }}
         </button>
       </div>
+      <input
+        v-if="servedLocally"
+        v-model.trim="hostAddr"
+        class="lan__input"
+        :placeholder="t('hostAddress')"
+        inputmode="url"
+        data-lan-host
+        autocomplete="off"
+      >
       <p
         v-if="props.lanError"
         class="lan__error"
         data-lan-error
       >
         {{ t('lanError', { message: props.lanError }) }}
+      </p>
+      <p
+        v-if="servedLocally && (props.lanError || !hostAddr)"
+        class="lan__hint"
+      >
+        {{ t('joinLocalHint') }}
       </p>
     </div>
 
@@ -411,6 +459,12 @@ function start() {
   margin: 0;
   font-size: 0.75rem;
   color: #ff8a8e;
+}
+.lan__hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  opacity: 0.75;
 }
 .chk {
   display: flex;

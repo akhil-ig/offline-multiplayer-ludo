@@ -67,6 +67,8 @@ const en = {
   needTwo: 'Need at least 2 players',
   hostOnly: 'Only the host can start',
   lanError: 'Could not join: {message}',
+  hostAddress: 'Host address (shown under the QR)',
+  joinLocalHint: 'This app runs its own server. To join a friend\'s room, enter the address shown under their QR, or scan their QR with the camera.',
   ipUnknown: 'Could not detect this phone\'s Wi-Fi address. Find it under Wi-Fi / hotspot settings and share http://<ip>:7878 with the room code.',
 }
 
@@ -137,6 +139,8 @@ const hi: Record<I18nKey, string> = {
   needTwo: 'कम से कम 2 खिलाड़ी चाहिए',
   hostOnly: 'सिर्फ होस्ट शुरू कर सकता है',
   lanError: 'जुड़ नहीं पाए: {message}',
+  hostAddress: 'होस्ट का पता (QR के नीचे लिखा)',
+  joinLocalHint: 'ये ऐप अपना सर्वर चलाता है। दोस्त के रूम में जुड़ने के लिए उनके QR के नीचे लिखा पता डालें, या कैमरे से उनका QR स्कैन करें।',
   ipUnknown: 'इस फोन का वाई-फाई पता नहीं मिला। वाई-फाई / हॉटस्पॉट सेटिंग में IP देखें और http://<ip>:7878 रूम कोड के साथ शेयर करें।',
 }
 
