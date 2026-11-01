@@ -6,7 +6,16 @@ import { colorVars } from '@/utils/colors'
 import { useSettingsStore } from '@/stores/settings'
 import { useI18n } from '@/i18n'
 
-const props = defineProps<{ canResume: boolean; rejoinCode?: string; prefillRoom?: string; prefillName?: string; lanError?: string }>()
+const props = defineProps<{
+  canResume: boolean
+  rejoinCode?: string
+  prefillRoom?: string
+  prefillName?: string
+  /** Last attempted LAN name/code, restored after a failed join so the user can correct it. */
+  draftName?: string
+  draftCode?: string
+  lanError?: string
+}>()
 const emit = defineEmits<{
   start: [players: NewPlayerSpec[]]
   resume: []
@@ -28,8 +37,8 @@ const seatsFor: Record<number, PlayerColor[]> = {
 const seats = computed(() => seatsFor[count.value])
 
 const names = reactive<Record<PlayerColor, string>>({ red: '', green: '', yellow: '', blue: '' })
-const lanName = ref(props.prefillName ?? '')
-const lanCode = ref(props.prefillRoom ?? '')
+const lanName = ref(props.prefillName || props.draftName || '')
+const lanCode = ref(props.prefillRoom || props.draftCode || '')
 const hostAddr = ref('')
 const canJoin = computed(() => lanCode.value.trim().length === 4)
 /** The Tauri app and `cargo run` serve from this device; a friend's room lives on *their* server. */

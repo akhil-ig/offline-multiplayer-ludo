@@ -92,7 +92,10 @@ function hostRoom(name: string) {
   screen.value = 'lobby'
 }
 
+const draft = ref({ name: '', code: '' })
+
 function joinRoom(code: string, name: string) {
+  draft.value = { name, code }
   net.join(code, name)
   screen.value = 'lobby'
 }
@@ -195,6 +198,8 @@ const lobbyUrl = computed(() => net.joinUrl || `${location.protocol}//${location
     :rejoin-code="rejoinCode"
     :prefill-room="prefillRoom"
     :prefill-name="prefillName"
+    :draft-name="draft.name"
+    :draft-code="draft.code"
     :lan-error="lanError"
     @start="start"
     @resume="resume"
