@@ -7,6 +7,7 @@ const props = defineProps<{
   color: PlayerColor
   tokenIndex: number
   cell: Cell
+  pos: number
   /** Offset within a shared cell, as a fraction of the cell (-0.5..0.5). */
   offsetX?: number
   offsetY?: number
@@ -17,14 +18,21 @@ const props = defineProps<{
 
 const emit = defineEmits<{ select: [tokenIndex: number] }>()
 
+/**
+ * The button itself is scaled and offset (not just the visual body), so the
+ * tap target of a stacked token never sits under a neighbour.
+ */
 const style = computed(() => {
   const unit = 100 / GRID_SIZE
+  const scale = props.scale ?? 1
+  const size = unit * scale
+  const cx = (props.cell.col - 1 + 0.5 + (props.offsetX ?? 0)) * unit
+  const cy = (props.cell.row - 1 + 0.5 + (props.offsetY ?? 0)) * unit
   return {
-    left: `${(props.cell.col - 1 + (props.offsetX ?? 0)) * unit}%`,
-    top: `${(props.cell.row - 1 + (props.offsetY ?? 0)) * unit}%`,
-    width: `${unit}%`,
-    height: `${unit}%`,
-    '--scale': String(props.scale ?? 1),
+    left: `${cx - size / 2}%`,
+    top: `${cy - size / 2}%`,
+    width: `${size}%`,
+    height: `${size}%`,
     ...colorVars(props.color),
   }
 })
@@ -37,6 +45,7 @@ const style = computed(() => {
     :class="{ 'token--movable': movable, 'token--dimmed': dimmed }"
     :style="style"
     :data-token="`${color}-${tokenIndex}`"
+    :data-pos="pos"
     :aria-label="`${color} token ${tokenIndex + 1}`"
     :disabled="!movable"
     @click="emit('select', tokenIndex)"
@@ -60,6 +69,8 @@ const style = computed(() => {
   transition:
     left 120ms ease,
     top 120ms ease,
+    width 120ms ease,
+    height 120ms ease,
     opacity 200ms ease;
   pointer-events: none;
   z-index: 5;
@@ -77,7 +88,6 @@ const style = computed(() => {
   width: 78%;
   height: 78%;
   border-radius: 9999px;
-  transform: scale(var(--scale));
   background:
     radial-gradient(circle at 35% 28%, var(--c-light) 0%, var(--c) 45%, var(--c-dark) 100%);
   box-shadow:
@@ -108,9 +118,10 @@ const style = computed(() => {
   border-radius: 9999px;
   border: 2px solid var(--c-light);
   opacity: 0;
+  pointer-events: none;
 }
 .token--movable .token__body {
-  transform: translateY(-4px) scale(var(--scale));
+  transform: translateY(-4px);
 }
 .token--movable .token__ring {
   animation: radar 1.3s ease-out infinite;

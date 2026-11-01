@@ -17,6 +17,7 @@ interface PlacedToken {
   color: Player['color']
   tokenIndex: number
   cell: ReturnType<typeof cellForToken>
+  pos: number
   offsetX: number
   offsetY: number
   scale: number
@@ -25,23 +26,32 @@ interface PlacedToken {
 }
 
 /** Layout offsets for N tokens sharing one cell. */
-const STACK_LAYOUT: Record<number, Array<[number, number]>> = {
-  1: [[0, 0]],
-  2: [
-    [-0.18, -0.18],
-    [0.18, 0.18],
-  ],
-  3: [
-    [0, -0.2],
-    [-0.2, 0.17],
-    [0.2, 0.17],
-  ],
-  4: [
-    [-0.18, -0.18],
-    [0.18, -0.18],
-    [-0.18, 0.18],
-    [0.18, 0.18],
-  ],
+const STACK_LAYOUT: Record<number, { scale: number; offsets: Array<[number, number]> }> = {
+  1: { scale: 1, offsets: [[0, 0]] },
+  2: {
+    scale: 0.68,
+    offsets: [
+      [-0.22, -0.22],
+      [0.22, 0.22],
+    ],
+  },
+  3: {
+    scale: 0.58,
+    offsets: [
+      [0, -0.24],
+      [-0.24, 0.2],
+      [0.24, 0.2],
+    ],
+  },
+  4: {
+    scale: 0.55,
+    offsets: [
+      [-0.23, -0.23],
+      [0.23, -0.23],
+      [-0.23, 0.23],
+      [0.23, 0.23],
+    ],
+  },
 }
 
 const placed = computed<PlacedToken[]>(() => {
@@ -57,6 +67,7 @@ const placed = computed<PlacedToken[]>(() => {
         color: p.color,
         tokenIndex,
         cell,
+        pos,
         offsetX: 0,
         offsetY: 0,
         scale: 1,
@@ -78,10 +89,10 @@ const placed = computed<PlacedToken[]>(() => {
     const n = Math.min(g.length, 4)
     const layout = STACK_LAYOUT[n]
     g.forEach((t, i) => {
-      const [ox, oy] = layout[i % n]
+      const [ox, oy] = layout.offsets[i % n]
       t.offsetX = ox
       t.offsetY = oy
-      t.scale = g.length === 2 ? 0.82 : 0.72
+      t.scale = layout.scale
     })
   }
   return out
@@ -96,6 +107,7 @@ const placed = computed<PlacedToken[]>(() => {
       :color="t.color"
       :token-index="t.tokenIndex"
       :cell="t.cell"
+      :pos="t.pos"
       :offset-x="t.offsetX"
       :offset-y="t.offsetY"
       :scale="t.scale"

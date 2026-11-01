@@ -1,22 +1,48 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useGameStore } from '@/stores/game'
+import { useSettingsStore } from '@/stores/settings'
+import { useGameFlow } from '@/composables/useGameFlow'
 import LudoBoard from '@/components/board/LudoBoard.vue'
 import PlayerCard from '@/components/hud/PlayerCard.vue'
 import TopBar from '@/components/hud/TopBar.vue'
-import type { PlayerColor } from '@/engine'
+import ToastStack from '@/components/hud/ToastStack.vue'
+import WinScreen from '@/components/hud/WinScreen.vue'
+import DebugToolbar from '@/components/hud/DebugToolbar.vue'
+import SetupScreen from '@/components/screens/SetupScreen.vue'
+import type { NewPlayerSpec, PlayerColor } from '@/engine'
 
 const game = useGameStore()
-const sound = ref(true)
-const haptics = ref(true)
+const settings = useSettingsStore()
+const flow = useGameFlow()
 
-onMounted(() => {
-  if (!game.state) {
-    game.newGame({
-      players: [{ color: 'red' }, { color: 'green' }, { color: 'yellow' }, { color: 'blue' }],
-    })
-  }
-})
+type Screen = 'setup' | 'game'
+const screen = ref<Screen>('setup')
+
+function start(players: NewPlayerSpec[]) {
+  game.newGame({
+    players,
+    settings: { blockingRule: settings.blockingRule, endAtFirstWinner: settings.endAtFirstWinner, autoMoveSingle: settings.autoMoveSingle },
+  })
+  screen.value = 'game'
+}
+
+function resume() {
+  if (game.resume()) screen.value = 'game'
+}
+
+/** Rematch with the same seats, names and bots as the game that just ended. */
+function again() {
+  const players: NewPlayerSpec[] = game.players.map((p) => ({ color: p.color, name: p.name, isBot: p.isBot }))
+  if (players.length) start(players)
+  else toMenu()
+}
+
+function toMenu() {
+  flow.cancel()
+  game.quit()
+  screen.value = 'setup'
+}
 
 const seat = (color: PlayerColor) => computed(() => game.playerByColor(color))
 const red = seat('red')
@@ -24,16 +50,36 @@ const green = seat('green')
 const yellow = seat('yellow')
 const blue = seat('blue')
 const activeColor = computed(() => game.current?.color ?? null)
+
+const cardProps = (color: PlayerColor) => ({
+  active: activeColor.value === color,
+  dice: activeColor.value === color ? game.dice : null,
+  canRoll: activeColor.value === color && flow.canRoll.value,
+  rolling: activeColor.value === color && flow.rolling.value,
+})
 </script>
 
 <template>
-  <div class="app">
+  <SetupScreen
+    v-if="screen === 'setup'"
+    :can-resume="game.hasSave"
+    @start="start"
+    @resume="resume"
+  />
+
+  <div
+    v-else
+    class="app"
+    :data-phase="game.phase"
+    :data-turn="activeColor"
+  >
     <TopBar
       mode="pass-play"
-      :sound="sound"
-      :haptics="haptics"
-      @toggle-sound="sound = !sound"
-      @toggle-haptics="haptics = !haptics"
+      :sound="settings.sound"
+      :haptics="settings.haptics"
+      @toggle-sound="settings.sound = !settings.sound"
+      @toggle-haptics="settings.haptics = !settings.haptics"
+      @open-room="toMenu"
     />
 
     <div class="table">
@@ -41,22 +87,26 @@ const activeColor = computed(() => game.current?.color ?? null)
         <PlayerCard
           v-if="red"
           :player="red"
-          :active="activeColor === 'red'"
-          :can-roll="activeColor === 'red'"
+          v-bind="cardProps('red')"
           dice-left
+          @roll="flow.roll"
         />
+        <div v-else />
         <PlayerCard
           v-if="green"
           :player="green"
-          :active="activeColor === 'green'"
-          :can-roll="activeColor === 'green'"
+          v-bind="cardProps('green')"
+          @roll="flow.roll"
         />
+        <div v-else />
       </div>
 
       <div class="stage">
         <LudoBoard
           :players="game.players"
           :active-color="activeColor"
+          :movable="flow.movable.value"
+          @select="flow.move"
         />
       </div>
 
@@ -64,19 +114,36 @@ const activeColor = computed(() => game.current?.color ?? null)
         <PlayerCard
           v-if="blue"
           :player="blue"
-          :active="activeColor === 'blue'"
-          :can-roll="activeColor === 'blue'"
+          v-bind="cardProps('blue')"
           dice-left
+          @roll="flow.roll"
         />
+        <div v-else />
         <PlayerCard
           v-if="yellow"
           :player="yellow"
-          :active="activeColor === 'yellow'"
-          :can-roll="activeColor === 'yellow'"
+          v-bind="cardProps('yellow')"
+          @roll="flow.roll"
         />
+        <div v-else />
       </div>
     </div>
+
+    <DebugToolbar
+      :can-roll="flow.canRoll.value"
+      @force="flow.rollForced"
+    />
+
+    <WinScreen
+      v-if="game.isOver && game.state"
+      :ranking="game.state.ranking"
+      :players="game.players"
+      @again="again"
+      @menu="toMenu"
+    />
   </div>
+
+  <ToastStack />
 </template>
 
 <style scoped>

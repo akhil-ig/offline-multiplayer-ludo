@@ -1,0 +1,250 @@
+<script setup lang="ts">
+import { computed, reactive, ref } from 'vue'
+import { Play, RotateCcw, Users } from 'lucide-vue-next'
+import { COLORS, type NewPlayerSpec, type PlayerColor } from '@/engine'
+import { colorVars } from '@/utils/colors'
+import { useSettingsStore } from '@/stores/settings'
+
+const props = defineProps<{ canResume: boolean }>()
+const emit = defineEmits<{ start: [players: NewPlayerSpec[]]; resume: [] }>()
+
+const settings = useSettingsStore()
+const count = ref<2 | 3 | 4>(4)
+
+/** Seat layouts: 2P is the classic diagonal (Red vs Yellow). */
+const seatsFor: Record<number, PlayerColor[]> = {
+  2: ['red', 'yellow'],
+  3: ['red', 'green', 'yellow'],
+  4: [...COLORS],
+}
+const seats = computed(() => seatsFor[count.value])
+
+const names = reactive<Record<PlayerColor, string>>({ red: '', green: '', yellow: '', blue: '' })
+
+function start() {
+  emit(
+    'start',
+    seats.value.map((color) => ({ color, name: names[color] })),
+  )
+}
+</script>
+
+<template>
+  <section class="setup">
+    <header class="setup__hero">
+      <h1 class="setup__title">
+        LUDO
+      </h1>
+      <p class="setup__sub">
+        Offline · Pass &amp; Play
+      </p>
+    </header>
+
+    <button
+      v-if="props.canResume"
+      type="button"
+      class="btn btn--ghost"
+      data-action="resume"
+      @click="emit('resume')"
+    >
+      <RotateCcw :size="16" />
+      Resume last game
+    </button>
+
+    <div class="setup__group">
+      <label class="setup__label"><Users :size="14" /> Players</label>
+      <div class="seg">
+        <button
+          v-for="n in [2, 3, 4] as const"
+          :key="n"
+          type="button"
+          class="seg__btn"
+          :class="{ 'seg__btn--on': count === n }"
+          :data-count="n"
+          @click="count = n"
+        >
+          {{ n }}
+        </button>
+      </div>
+    </div>
+
+    <div class="setup__group">
+      <div
+        v-for="color in seats"
+        :key="color"
+        class="seat"
+        :style="colorVars(color)"
+      >
+        <span class="seat__dot" />
+        <input
+          v-model.trim="names[color]"
+          class="seat__input"
+          :placeholder="color.charAt(0).toUpperCase() + color.slice(1)"
+          maxlength="12"
+          :data-name="color"
+          autocomplete="off"
+        >
+      </div>
+    </div>
+
+    <div class="setup__group setup__group--row">
+      <label class="chk"><input
+        v-model="settings.blockingRule"
+        type="checkbox"
+      > Blocking rule</label>
+      <label class="chk"><input
+        v-model="settings.endAtFirstWinner"
+        type="checkbox"
+      > End at first winner</label>
+    </div>
+
+    <button
+      type="button"
+      class="btn btn--primary"
+      data-action="start"
+      @click="start"
+    >
+      <Play
+        :size="18"
+        fill="currentColor"
+      />
+      Start game
+    </button>
+  </section>
+</template>
+
+<style scoped>
+.setup {
+  height: 100dvh;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 1.5rem) 1.25rem calc(env(safe-area-inset-bottom) + 1.5rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+}
+.setup__hero {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+.setup__title {
+  margin: 0;
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  background: linear-gradient(180deg, #fff3c4, #f5b800 60%, #c98a00);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.5));
+}
+.setup__sub {
+  margin: 0.25rem 0 0;
+  opacity: 0.65;
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.setup__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.setup__group--row {
+  flex-direction: row;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+.setup__label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+}
+.seg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+}
+.seg__btn {
+  padding: 0.6rem;
+  border-radius: 0.8rem;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.seg__btn--on {
+  background: linear-gradient(180deg, #ffd95c, #f5b800);
+  color: #3b2a00;
+  border-color: #ffe68a;
+  box-shadow: 0 4px 0 #a87c00;
+}
+.seat {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--c) 16%, rgba(255, 255, 255, 0.04));
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+}
+.seat__dot {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 30%, var(--c-light), var(--c) 60%, var(--c-dark));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.seat__input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.seat__input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+.chk {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+}
+.btn--ghost {
+  opacity: 0.9;
+}
+.btn--primary {
+  color: #3b2a00;
+  background: linear-gradient(180deg, #ffd95c, #f5b800);
+  border-color: #ffe68a;
+  box-shadow: 0 5px 0 #a87c00, 0 10px 20px rgba(0, 0, 0, 0.4);
+}
+.btn--primary:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #a87c00;
+}
+</style>
