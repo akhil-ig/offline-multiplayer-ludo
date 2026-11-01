@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { Play, RotateCcw, Users } from 'lucide-vue-next'
+import { Bot, Languages, Play, RotateCcw, User, Users } from 'lucide-vue-next'
 import { COLORS, type NewPlayerSpec, type PlayerColor } from '@/engine'
 import { colorVars } from '@/utils/colors'
 import { useSettingsStore } from '@/stores/settings'
+import { useI18n } from '@/i18n'
 
 const props = defineProps<{ canResume: boolean }>()
 const emit = defineEmits<{ start: [players: NewPlayerSpec[]]; resume: [] }>()
 
 const settings = useSettingsStore()
+const { t, lang, toggleLang, colorName } = useI18n()
 const count = ref<2 | 3 | 4>(4)
 
 /** Seat layouts: 2P is the classic diagonal (Red vs Yellow). */
@@ -20,11 +22,12 @@ const seatsFor: Record<number, PlayerColor[]> = {
 const seats = computed(() => seatsFor[count.value])
 
 const names = reactive<Record<PlayerColor, string>>({ red: '', green: '', yellow: '', blue: '' })
+const bots = reactive<Record<PlayerColor, boolean>>({ red: false, green: false, yellow: false, blue: false })
 
 function start() {
   emit(
     'start',
-    seats.value.map((color) => ({ color, name: names[color] })),
+    seats.value.map((color) => ({ color, name: names[color], isBot: bots[color] })),
   )
 }
 </script>
@@ -36,7 +39,7 @@ function start() {
         LUDO
       </h1>
       <p class="setup__sub">
-        Offline · Pass &amp; Play
+        Offline · {{ t('passPlay') }}
       </p>
     </header>
 
@@ -48,11 +51,11 @@ function start() {
       @click="emit('resume')"
     >
       <RotateCcw :size="16" />
-      Resume last game
+      {{ t('resume') }}
     </button>
 
     <div class="setup__group">
-      <label class="setup__label"><Users :size="14" /> Players</label>
+      <label class="setup__label"><Users :size="14" /> {{ t('players') }}</label>
       <div class="seg">
         <button
           v-for="n in [2, 3, 4] as const"
@@ -79,11 +82,30 @@ function start() {
         <input
           v-model.trim="names[color]"
           class="seat__input"
-          :placeholder="color.charAt(0).toUpperCase() + color.slice(1)"
+          :placeholder="colorName(color)"
           maxlength="12"
           :data-name="color"
           autocomplete="off"
         >
+        <button
+          type="button"
+          class="seat__bot"
+          :class="{ 'seat__bot--on': bots[color] }"
+          :aria-pressed="bots[color]"
+          :aria-label="`${colorName(color)}: ${bots[color] ? t('bot') : t('human')}`"
+          :data-bot="color"
+          @click="bots[color] = !bots[color]"
+        >
+          <Bot
+            v-if="bots[color]"
+            :size="15"
+          />
+          <User
+            v-else
+            :size="15"
+          />
+          <span>{{ bots[color] ? t('bot') : t('human') }}</span>
+        </button>
       </div>
     </div>
 
@@ -91,11 +113,27 @@ function start() {
       <label class="chk"><input
         v-model="settings.blockingRule"
         type="checkbox"
-      > Blocking rule</label>
+      > {{ t('blockingRule') }}</label>
       <label class="chk"><input
         v-model="settings.endAtFirstWinner"
         type="checkbox"
-      > End at first winner</label>
+      > {{ t('endAtFirstWinner') }}</label>
+    </div>
+    <div class="setup__group setup__group--row">
+      <label class="chk"><input
+        v-model="settings.debugToolbar"
+        type="checkbox"
+        data-debug-opt
+      > {{ t('debugTools') }}</label>
+      <button
+        type="button"
+        class="lang"
+        data-lang
+        @click="toggleLang"
+      >
+        <Languages :size="14" />
+        {{ lang === 'en' ? 'हिंदी' : 'English' }}
+      </button>
     </div>
 
     <button
@@ -108,7 +146,7 @@ function start() {
         :size="18"
         fill="currentColor"
       />
-      Start game
+      {{ t('start') }}
     </button>
   </section>
 </template>
@@ -122,11 +160,12 @@ function start() {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1rem;
+  gap: 0.9rem;
+  overflow-y: auto;
 }
 .setup__hero {
   text-align: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 .setup__title {
   margin: 0;
@@ -153,9 +192,10 @@ function start() {
 }
 .setup__group--row {
   flex-direction: row;
+  align-items: center;
   justify-content: space-between;
   font-size: 0.8rem;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 .setup__label {
   display: flex;
@@ -190,7 +230,7 @@ function start() {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.45rem 0.7rem;
+  padding: 0.4rem 0.4rem 0.4rem 0.7rem;
   border-radius: 0.9rem;
   background: color-mix(in srgb, var(--c) 16%, rgba(255, 255, 255, 0.04));
   border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
@@ -216,10 +256,39 @@ function start() {
 .seat__input::placeholder {
   color: rgba(255, 255, 255, 0.45);
 }
+.seat__bot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.seat__bot--on {
+  color: #3b2a00;
+  background: linear-gradient(180deg, #ffd95c, #f5b800);
+  border-color: #ffe68a;
+}
 .chk {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+.lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 .btn {
   display: inline-flex;

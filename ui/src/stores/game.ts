@@ -83,6 +83,15 @@ export const useGameStore = defineStore('game', () => {
     commit({ state: next, events })
   }
 
+  function setBot(color: PlayerColor, isBot: boolean): void {
+    if (!state.value) return
+    const s = cloneState(state.value)
+    const p = s.players.find((x) => x.color === color)
+    if (!p) return
+    p.isBot = isBot
+    state.value = s
+  }
+
   /** Debug only: overwrite one player's tokens. */
   function debugSetTokens(color: PlayerColor, tokens: TokenPos[]): void {
     if (!state.value) return
@@ -158,6 +167,7 @@ export const useGameStore = defineStore('game', () => {
     rollForced,
     move,
     applyRemote,
+    setBot,
     debugSetTokens,
     resume,
     clearSave,

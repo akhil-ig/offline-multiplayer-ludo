@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Smartphone, Vibrate, VibrateOff, Volume2, VolumeX, Wifi } from 'lucide-vue-next'
+import { Languages, Smartphone, Vibrate, VibrateOff, Volume2, VolumeX, Wifi } from 'lucide-vue-next'
+import { useI18n } from '@/i18n'
 
 const props = defineProps<{
   mode: 'pass-play' | 'lan-host' | 'lan-join'
@@ -9,6 +10,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ 'toggle-sound': []; 'toggle-haptics': []; 'open-room': [] }>()
+const { t, lang, toggleLang } = useI18n()
 </script>
 
 <template>
@@ -16,6 +18,7 @@ const emit = defineEmits<{ 'toggle-sound': []; 'toggle-haptics': []; 'open-room'
     <button
       type="button"
       class="pill"
+      data-room-pill
       @click="emit('open-room')"
     >
       <Smartphone
@@ -26,7 +29,7 @@ const emit = defineEmits<{ 'toggle-sound': []; 'toggle-haptics': []; 'open-room'
         v-else
         :size="14"
       />
-      <span>{{ props.mode === 'pass-play' ? 'Pass & Play' : props.roomLabel ?? 'LAN' }}</span>
+      <span>{{ props.mode === 'pass-play' ? t('passPlay') : props.roomLabel ?? t('lan') }}</span>
     </button>
     <h1 class="title">
       LUDO
@@ -34,9 +37,20 @@ const emit = defineEmits<{ 'toggle-sound': []; 'toggle-haptics': []; 'open-room'
     <div class="actions">
       <button
         type="button"
+        class="icon-btn icon-btn--text"
+        :aria-label="t('language')"
+        data-lang
+        @click="toggleLang"
+      >
+        <Languages :size="15" />
+        <span>{{ lang === 'en' ? 'हि' : 'EN' }}</span>
+      </button>
+      <button
+        type="button"
         class="icon-btn"
         :aria-pressed="props.sound"
         aria-label="toggle sound"
+        :title="t('toggleSound')"
         @click="emit('toggle-sound')"
       >
         <Volume2
@@ -53,6 +67,7 @@ const emit = defineEmits<{ 'toggle-sound': []; 'toggle-haptics': []; 'open-room'
         class="icon-btn"
         :aria-pressed="props.haptics"
         aria-label="toggle haptics"
+        :title="t('toggleHaptics')"
         @click="emit('toggle-haptics')"
       >
         <Vibrate
@@ -105,7 +120,7 @@ const emit = defineEmits<{ 'toggle-sound': []; 'toggle-haptics': []; 'open-room'
   gap: 0.35rem;
 }
 .icon-btn {
-  width: 2.1rem;
+  min-width: 2.1rem;
   height: 2.1rem;
   display: grid;
   place-items: center;
@@ -113,6 +128,14 @@ const emit = defineEmits<{ 'toggle-sound': []; 'toggle-haptics': []; 'open-room'
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.icon-btn--text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 .icon-btn[aria-pressed='false'] {
   opacity: 0.5;

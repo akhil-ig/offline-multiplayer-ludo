@@ -2,11 +2,13 @@
 import { Trophy } from 'lucide-vue-next'
 import type { Player, PlayerColor } from '@/engine'
 import { colorVars } from '@/utils/colors'
+import { useI18n } from '@/i18n'
 
 const props = defineProps<{ ranking: PlayerColor[]; players: Player[] }>()
 const emit = defineEmits<{ again: []; menu: [] }>()
 
-const nameOf = (c: PlayerColor) => props.players.find((p) => p.color === c)?.name ?? c
+const { t, displayName } = useI18n()
+const nameOf = (c: PlayerColor) => displayName(props.players.find((p) => p.color === c)) || c
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣']
 </script>
 
@@ -23,7 +25,7 @@ const MEDALS = ['🥇', '🥈', '🥉', '4️⃣']
         <Trophy :size="34" />
       </div>
       <h2 class="win__title">
-        {{ nameOf(ranking[0]) }} wins!
+        {{ t('winsTitle', { name: nameOf(ranking[0]) }) }}
       </h2>
       <ol class="win__list">
         <li
@@ -44,7 +46,7 @@ const MEDALS = ['🥇', '🥈', '🥉', '4️⃣']
           data-action="again"
           @click="emit('again')"
         >
-          Play again
+          {{ t('playAgain') }}
         </button>
         <button
           type="button"
@@ -52,7 +54,7 @@ const MEDALS = ['🥇', '🥈', '🥉', '4️⃣']
           data-action="menu"
           @click="emit('menu')"
         >
-          Main menu
+          {{ t('mainMenu') }}
         </button>
       </div>
     </div>

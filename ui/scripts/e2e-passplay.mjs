@@ -37,7 +37,7 @@ const openDebug = async () => {
   if (!(await panel.count())) await page.locator('[data-debug-toggle]').click()
 }
 
-await page.goto(base, { waitUntil: 'networkidle' })
+await page.goto(`${base}/?debug`, { waitUntil: 'networkidle' })
 
 await check('setup: start a 2-player game with a custom name', async () => {
   await page.locator('[data-count="2"]').click()

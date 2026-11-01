@@ -4,6 +4,7 @@ import { Bot, Crown } from 'lucide-vue-next'
 import { GOAL, YARD, type Player } from '@/engine'
 import { colorVars } from '@/utils/colors'
 import DiceBox from './DiceBox.vue'
+import { useI18n } from '@/i18n'
 
 const props = defineProps<{
   player: Player
@@ -16,6 +17,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ roll: [] }>()
+const { t, displayName } = useI18n()
 
 const homeCount = computed(() => props.player.tokens.filter((t) => t === GOAL).length)
 const outCount = computed(() => props.player.tokens.filter((t) => t !== YARD && t !== GOAL).length)
@@ -37,7 +39,7 @@ const outCount = computed(() => props.player.tokens.filter((t) => t !== YARD && 
     <div class="card__body">
       <div class="card__name">
         <span class="card__dot" />
-        <span class="truncate">{{ player.name }}</span>
+        <span class="truncate">{{ displayName(player) }}</span>
         <Bot
           v-if="player.isBot"
           :size="14"
@@ -51,12 +53,12 @@ const outCount = computed(() => props.player.tokens.filter((t) => t !== YARD && 
       </div>
       <div class="card__tokens">
         <span
-          v-for="(t, i) in player.tokens"
+          v-for="(tok, i) in player.tokens"
           :key="i"
           class="card__tok"
-          :class="{ 'card__tok--home': t === GOAL, 'card__tok--out': t !== GOAL && t !== YARD }"
+          :class="{ 'card__tok--home': tok === GOAL, 'card__tok--out': tok !== GOAL && tok !== YARD }"
         />
-        <span class="card__meta">{{ homeCount }} home · {{ outCount }} out</span>
+        <span class="card__meta">{{ homeCount }} {{ t('home') }} · {{ outCount }} {{ t('out') }}</span>
       </div>
     </div>
   </div>

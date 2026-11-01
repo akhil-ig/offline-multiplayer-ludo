@@ -5,6 +5,8 @@ import { useSettingsStore } from '@/stores/settings'
 import { useGameFlow } from '@/composables/useGameFlow'
 import { useAnimStore } from '@/stores/anim'
 import { useFeedback } from '@/composables/useFeedback'
+import { useI18n } from '@/i18n'
+import { DEBUG } from '@/utils/env'
 import LudoBoard from '@/components/board/LudoBoard.vue'
 import PlayerCard from '@/components/hud/PlayerCard.vue'
 import TopBar from '@/components/hud/TopBar.vue'
@@ -12,29 +14,38 @@ import ToastStack from '@/components/hud/ToastStack.vue'
 import WinScreen from '@/components/hud/WinScreen.vue'
 import DebugToolbar from '@/components/hud/DebugToolbar.vue'
 import EventBanner from '@/components/hud/EventBanner.vue'
+import LobbyModal from '@/components/hud/LobbyModal.vue'
 import SetupScreen from '@/components/screens/SetupScreen.vue'
-import type { NewPlayerSpec, PlayerColor } from '@/engine'
+import { COLORS, type NewPlayerSpec, type PlayerColor } from '@/engine'
 
 const game = useGameStore()
 const settings = useSettingsStore()
 const flow = useGameFlow()
 const anim = useAnimStore()
+const { t, displayName } = useI18n()
 useFeedback()
 
 type Screen = 'setup' | 'game'
 const screen = ref<Screen>('setup')
+const lobbyOpen = ref(false)
+const showDebug = computed(() => DEBUG || settings.debugToolbar)
 
 function start(players: NewPlayerSpec[]) {
   anim.trigger('tap')
+  flow.cancel()
   game.newGame({
     players,
     settings: { blockingRule: settings.blockingRule, endAtFirstWinner: settings.endAtFirstWinner, autoMoveSingle: settings.autoMoveSingle },
   })
   screen.value = 'game'
+  flow.kick()
 }
 
 function resume() {
-  if (game.resume()) screen.value = 'game'
+  if (game.resume()) {
+    screen.value = 'game'
+    flow.kick()
+  }
 }
 
 /** Rematch with the same seats, names and bots as the game that just ended. */
@@ -42,6 +53,11 @@ function again() {
   const players: NewPlayerSpec[] = game.players.map((p) => ({ color: p.color, name: p.name, isBot: p.isBot }))
   if (players.length) start(players)
   else toMenu()
+}
+
+function restart(count: 2 | 4) {
+  const seats: PlayerColor[] = count === 2 ? ['red', 'yellow'] : [...COLORS]
+  start(seats.map((color) => ({ color, name: game.playerByColor(color)?.name, isBot: game.playerByColor(color)?.isBot ?? false })))
 }
 
 function toMenu() {
@@ -57,12 +73,24 @@ const yellow = seat('yellow')
 const blue = seat('blue')
 const activeColor = computed(() => game.current?.color ?? null)
 
+const status = computed(() => {
+  const me = game.current
+  if (!me || game.isOver) return ''
+  const name = displayName(me)
+  if (me.isBot) return t('botThinking', { name })
+  if (game.phase === 'move') return t('chooseToken')
+  return `${t('turnOf', { name })} · ${t('tapDice')}`
+})
+
 const cardProps = (color: PlayerColor) => ({
   active: activeColor.value === color,
   dice: activeColor.value === color ? game.dice : null,
   canRoll: activeColor.value === color && flow.canRoll.value,
   rolling: activeColor.value === color && flow.rolling.value,
 })
+
+/** Placeholder until the Rust server (M7) provides the real room. */
+const lobbyUrl = computed(() => `${location.protocol}//${location.host}/?room=LUDO`)
 </script>
 
 <template>
@@ -77,8 +105,8 @@ const cardProps = (color: PlayerColor) => ({
     v-else
     class="app"
     :data-phase="game.phase"
-    :data-busy="flow.busy.value"
     :data-turn="activeColor"
+    :data-busy="flow.busy.value"
   >
     <TopBar
       mode="pass-play"
@@ -107,6 +135,14 @@ const cardProps = (color: PlayerColor) => ({
         />
         <div v-else />
       </div>
+
+      <p
+        class="status"
+        data-status
+        :style="activeColor ? { '--c': `var(--color-ludo-${activeColor})` } : undefined"
+      >
+        {{ status }}
+      </p>
 
       <div
         class="stage"
@@ -141,8 +177,19 @@ const cardProps = (color: PlayerColor) => ({
     </div>
 
     <DebugToolbar
-      :can-roll="flow.canRoll.value"
+      v-if="showDebug"
+      :can-roll="!flow.busy.value && game.phase === 'roll'"
       @force="flow.rollForced"
+      @restart="restart"
+      @lobby="lobbyOpen = true"
+    />
+
+    <LobbyModal
+      :open="lobbyOpen"
+      :join-url="lobbyUrl"
+      room-code="LUDO"
+      preview
+      @close="lobbyOpen = false"
     />
 
     <WinScreen
@@ -176,12 +223,22 @@ const cardProps = (color: PlayerColor) => ({
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
 }
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
+}
+.status {
+  margin: 0;
+  min-height: 1.1rem;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--c, #fff) 55%, #fff);
+  opacity: 0.9;
 }
 .stage {
   position: relative;

@@ -15,7 +15,9 @@
     "screenshot": "node scripts/screenshot.mjs http://localhost:4173 ../docs/screenshots",
     "e2e": "node scripts/e2e-passplay.mjs http://localhost:4173",
     "anim-check": "node scripts/anim-check.mjs http://localhost:4173 ../docs/screenshots",
-    "sound-check": "node scripts/sound-check.mjs http://localhost:4173"
+    "sound-check": "node scripts/sound-check.mjs http://localhost:4173",
+    "bot-soak": "node scripts/bot-soak.mjs http://localhost:4173",
+    "check:all": "npm run lint && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

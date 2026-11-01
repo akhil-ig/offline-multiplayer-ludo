@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 import confetti from 'canvas-confetti'
 import { YARD, cellForToken, type Cell, type GameEvent, type GameState, type PlayerColor } from '@/engine'
+import { TURBO } from '@/utils/env'
+import type { I18nKey } from '@/i18n'
 
 export const STEP_MS = 110
 export const ZIP_MS = 25
@@ -16,7 +18,8 @@ export interface Burst {
 }
 
 export interface Banner {
-  text: string
+  key: I18nKey
+  params?: Record<string, string>
   emoji: string
   color: PlayerColor
 }
@@ -42,7 +45,7 @@ export const useAnimStore = defineStore('anim', () => {
   const shake = ref(false)
   const banner = ref<Banner | null>(null)
   const bursts = reactive<Burst[]>([])
-  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reduced = ref(TURBO || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches))
   const hooks = new Map<AnimHook, Set<HookFn>>()
   let burstId = 1
   let bannerTimer: ReturnType<typeof setTimeout> | null = null
@@ -89,7 +92,7 @@ export const useAnimStore = defineStore('anim', () => {
   }
 
   function fireConfetti(big: boolean) {
-    if (reduced) return
+    if (reduced.value) return
     try {
       confetti({
         particleCount: big ? 160 : 60,
@@ -111,13 +114,13 @@ export const useAnimStore = defineStore('anim', () => {
       display[key] = 0
       hopTick[key] = (hopTick[key] ?? 0) + 1
       emit('unlock', { color: e.player })
-      if (!reduced) await sleep(UNLOCK_MS)
+      if (!reduced.value) await sleep(UNLOCK_MS)
     } else {
       for (let p = e.from + 1, step = 0; p <= e.to; p++, step++) {
         display[key] = p
         hopTick[key] = (hopTick[key] ?? 0) + 1
         emit('hop', { step, color: e.player })
-        if (!reduced) await sleep(STEP_MS)
+        if (!reduced.value) await sleep(STEP_MS)
       }
     }
     emit('land', { color: e.player })
@@ -128,7 +131,7 @@ export const useAnimStore = defineStore('anim', () => {
     const key = tokenKey(e.victim, e.token)
     const from = display[key] ?? e.fromPos
     emit('capture', { color: e.victim })
-    if (!reduced) {
+    if (!reduced.value) {
       doShake()
       burstAt(cellForToken(e.victim, from, e.token), e.victim)
       await sleep(140)
@@ -140,7 +143,7 @@ export const useAnimStore = defineStore('anim', () => {
       }
     }
     display[key] = YARD
-    if (!reduced) await sleep(90)
+    if (!reduced.value) await sleep(90)
   }
 
   /** Plays the choreography for one engine step. Resolves when the board is settled. */
@@ -158,29 +161,29 @@ export const useAnimStore = defineStore('anim', () => {
           case 'reachedGoal':
             emit('goal', { color: e.player })
             fireConfetti(false)
-            if (!reduced) await sleep(120)
+            if (!reduced.value) await sleep(120)
             break
           case 'bonusRoll':
             showBanner(
               e.reason === 'capture'
-                ? { text: 'EXTRA TURN!', emoji: '🔥', color: e.player }
+                ? { key: 'extraTurn', emoji: '🔥', color: e.player }
                 : e.reason === 'goal'
-                  ? { text: 'HOME RUN!', emoji: '🏠', color: e.player }
-                  : { text: 'SIX! ROLL AGAIN', emoji: '🎲', color: e.player },
+                  ? { key: 'homeRun', emoji: '🏠', color: e.player }
+                  : { key: 'sixAgain', emoji: '🎲', color: e.player },
             )
-            if (!reduced) await sleep(260)
+            if (!reduced.value) await sleep(260)
             break
           case 'threeSixes':
             emit('fail', { color: e.player })
-            showBanner({ text: 'OOPS! THREE 6s', emoji: '😵', color: e.player })
-            if (!reduced) await sleep(420)
+            showBanner({ key: 'threeSixes', emoji: '😵', color: e.player })
+            if (!reduced.value) await sleep(420)
             break
           case 'finished':
             if (e.rank === 1) {
               emit('win', { color: e.player })
-              showBanner({ text: `${names(e.player).toUpperCase()} WINS!`, emoji: '🏆', color: e.player })
+              showBanner({ key: 'winsBanner', params: { name: names(e.player) }, emoji: '🏆', color: e.player })
               fireConfetti(true)
-              if (!reduced) await sleep(500)
+              if (!reduced.value) await sleep(500)
             }
             break
           default:

@@ -88,13 +88,13 @@ export function playerIndex(state: GameState, color: PlayerColor): number {
   return state.players.findIndex((p) => p.color === color)
 }
 
-interface TokenRef {
+export interface TokenRef {
   playerIdx: number
   tokenIdx: number
 }
 
 /** All tokens belonging to players other than `playerIdx` sitting on absolute track cell `absIdx`. */
-function opponentsAt(state: GameState, playerIdx: number, absIdx: number): TokenRef[] {
+export function opponentsAt(state: GameState, playerIdx: number, absIdx: number): TokenRef[] {
   const out: TokenRef[] = []
   state.players.forEach((p, pi) => {
     if (pi === playerIdx) return

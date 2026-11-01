@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { useAnimStore } from '@/stores/anim'
 import { colorVars } from '@/utils/colors'
+import { useI18n } from '@/i18n'
 
 const anim = useAnimStore()
+const { t } = useI18n()
 </script>
 
 <template>
@@ -14,7 +16,7 @@ const anim = useAnimStore()
       data-banner
     >
       <span class="banner__emoji">{{ anim.banner.emoji }}</span>
-      <span class="banner__text">{{ anim.banner.text }}</span>
+      <span class="banner__text">{{ t(anim.banner.key, anim.banner.params) }}</span>
     </div>
   </Transition>
 </template>
