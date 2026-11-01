@@ -77,7 +77,12 @@ impl Room {
     }
 
     pub fn broadcast_lobby(&self) {
-        self.broadcast(&ServerMsg::Lobby { players: self.lobby() }, None);
+        self.broadcast(
+            &ServerMsg::Lobby {
+                players: self.lobby(),
+            },
+            None,
+        );
     }
 }
 
@@ -180,7 +185,11 @@ impl Registry {
             return Err(RoomError::RoomFull);
         }
         let name = clean_name(name, "Player");
-        if room.seats.iter().any(|s| s.name.eq_ignore_ascii_case(&name)) {
+        if room
+            .seats
+            .iter()
+            .any(|s| s.name.eq_ignore_ascii_case(&name))
+        {
             return Err(RoomError::NameTaken);
         }
         let seat = Seat {
@@ -228,8 +237,7 @@ impl Registry {
         let before = self.rooms.len();
         self.rooms.retain(|_, r| {
             r.connected() > 0
-                || r
-                    .last_activity
+                || r.last_activity
                     .map(|t| now.duration_since(t) < ROOM_TTL)
                     .unwrap_or(false)
         });
@@ -269,9 +277,15 @@ mod tests {
             joined.push(reg.join(&code, n, t).unwrap());
         }
         let (t, _r) = tx();
-        assert!(matches!(reg.join(&code, "Five", t), Err(RoomError::RoomFull)));
+        assert!(matches!(
+            reg.join(&code, "Five", t),
+            Err(RoomError::RoomFull)
+        ));
         let (t, _r) = tx();
-        assert!(matches!(reg.join("ZZZZ", "X", t), Err(RoomError::NoSuchRoom)));
+        assert!(matches!(
+            reg.join("ZZZZ", "X", t),
+            Err(RoomError::NoSuchRoom)
+        ));
 
         // Drop a joiner, lobby shows disconnected, reconnect restores it.
         reg.detach(&code, &joined[0].player_id);
@@ -280,9 +294,19 @@ mod tests {
         let (t, _r) = tx();
         let again = reg.reconnect(&code, &joined[0].seat_token, t).unwrap();
         assert_eq!(again.player_id, joined[0].player_id);
-        assert!(reg.rooms[&code].lobby().iter().find(|p| p.name == "Kajal").unwrap().connected);
+        assert!(
+            reg.rooms[&code]
+                .lobby()
+                .iter()
+                .find(|p| p.name == "Kajal")
+                .unwrap()
+                .connected
+        );
         let (t, _r) = tx();
-        assert!(matches!(reg.reconnect(&code, "nope", t), Err(RoomError::BadToken)));
+        assert!(matches!(
+            reg.reconnect(&code, "nope", t),
+            Err(RoomError::BadToken)
+        ));
     }
 
     #[test]
@@ -319,7 +343,8 @@ mod tests {
         let (t2, _r2) = tx();
         let (dead, d) = reg.create("H2", t2);
         reg.detach(&dead, &d.player_id);
-        reg.rooms.get_mut(&dead).unwrap().last_activity = Some(Instant::now() - ROOM_TTL - Duration::from_secs(1));
+        reg.rooms.get_mut(&dead).unwrap().last_activity =
+            Some(Instant::now() - ROOM_TTL - Duration::from_secs(1));
         assert_eq!(reg.gc(Instant::now()), 1);
         assert!(reg.rooms.contains_key(&live));
         assert!(!reg.rooms.contains_key(&dead));

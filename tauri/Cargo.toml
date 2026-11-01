@@ -1,0 +1,27 @@
+[package]
+name = "ludo-app"
+version = "0.1.0"
+edition = "2021"
+description = "Offline Multiplayer Ludo — Tauri v2 shell with the embedded LAN server"
+license = "MIT"
+
+[lib]
+name = "ludo_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+ludo-server = { path = "../server" }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "macros", "time"] }
+axum = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

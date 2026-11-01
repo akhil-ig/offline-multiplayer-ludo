@@ -14,6 +14,7 @@ const { t } = useI18n()
 const total = computed(() => net.players.length + props.bots)
 const canStart = computed(() => net.isHost && total.value >= 2 && total.value <= 4)
 const maxBots = computed(() => Math.max(0, 4 - net.players.length))
+const ipUnknown = computed(() => net.joinUrl.includes('0.0.0.0'))
 </script>
 
 <template>
@@ -62,6 +63,13 @@ const maxBots = computed(() => Math.max(0, 4 - net.players.length))
       v-if="net.joinUrl"
       class="lobby__url"
     >{{ net.joinUrl }}</code>
+    <p
+      v-if="ipUnknown"
+      class="lobby__error"
+      data-ip-unknown
+    >
+      {{ t('ipUnknown') }}
+    </p>
 
     <ul class="lobby__list">
       <li

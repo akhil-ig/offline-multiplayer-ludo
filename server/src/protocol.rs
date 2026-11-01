@@ -13,7 +13,11 @@ pub struct LobbyPlayer {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ClientMsg {
     Create {
         name: String,
@@ -44,7 +48,11 @@ pub enum ClientMsg {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum ServerMsg {
     Welcome {
         code: String,
@@ -79,6 +87,8 @@ pub enum ServerMsg {
 
 impl ServerMsg {
     pub fn error(message: impl Into<String>) -> Self {
-        ServerMsg::Error { message: message.into() }
+        ServerMsg::Error {
+            message: message.into(),
+        }
     }
 }

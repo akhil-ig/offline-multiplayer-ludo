@@ -59,16 +59,23 @@ pub async fn handle(socket: WebSocket, app: Arc<AppState>) {
                     }
                     ClientMsg::Reconnect { code, seat_token } => {
                         let code = code.trim().to_ascii_uppercase();
-                        reg.reconnect(&code, &seat_token, tx.clone()).map(|j| (code, j))
+                        reg.reconnect(&code, &seat_token, tx.clone())
+                            .map(|j| (code, j))
                     }
                     _ => {
-                        let _ = tx.send(ServerMsg::error("say hello first (create/join/reconnect)"));
+                        let _ =
+                            tx.send(ServerMsg::error("say hello first (create/join/reconnect)"));
                         continue;
                     }
                 };
                 match result {
                     Ok((code, joined)) => {
-                        info!(code, player = joined.player_id, host = joined.is_host, "seat attached");
+                        info!(
+                            code,
+                            player = joined.player_id,
+                            host = joined.is_host,
+                            "seat attached"
+                        );
                         let _ = tx.send(ServerMsg::Welcome {
                             code: code.clone(),
                             player_id: joined.player_id.clone(),
@@ -108,7 +115,14 @@ pub async fn handle(socket: WebSocket, app: Arc<AppState>) {
                     }
                 }
             }
-            (Some((code, me)), ClientMsg::State { state, events, seats }) => {
+            (
+                Some((code, me)),
+                ClientMsg::State {
+                    state,
+                    events,
+                    seats,
+                },
+            ) => {
                 if !me.is_host {
                     let _ = tx.send(ServerMsg::error("only the host may publish state"));
                     continue;
@@ -117,7 +131,14 @@ pub async fn handle(socket: WebSocket, app: Arc<AppState>) {
                 if let Some(room) = reg.rooms.get_mut(code) {
                     room.last_state = Some((state.clone(), seats.clone()));
                     room.last_activity = Some(std::time::Instant::now());
-                    room.broadcast(&ServerMsg::State { state, events, seats }, Some(&me.player_id));
+                    room.broadcast(
+                        &ServerMsg::State {
+                            state,
+                            events,
+                            seats,
+                        },
+                        Some(&me.player_id),
+                    );
                 }
             }
             (Some((code, me)), ClientMsg::Hint { kind, color }) => {

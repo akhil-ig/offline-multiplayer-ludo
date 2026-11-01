@@ -18,7 +18,8 @@
     "sound-check": "node scripts/sound-check.mjs http://localhost:4173",
     "bot-soak": "node scripts/bot-soak.mjs http://localhost:4173",
     "check:all": "npm run lint && npm run typecheck && npm test && npm run build",
-    "lan-check": "node scripts/lan-check.mjs ../server/target/debug/ludo-server 7979"
+    "lan-check": "node scripts/lan-check.mjs ../server/target/debug/ludo-server 7979",
+    "icons": "node scripts/make-icons.mjs ../tauri/icons"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

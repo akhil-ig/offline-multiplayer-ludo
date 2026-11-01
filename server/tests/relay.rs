@@ -17,7 +17,10 @@ async fn start() -> SocketAddr {
     };
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let app = build_state(&Args { port: addr.port(), ..args });
+    let app = build_state(&Args {
+        port: addr.port(),
+        ..args
+    });
     tokio::spawn(async move { axum::serve(listener, router(app)).await.unwrap() });
     addr
 }
@@ -32,7 +35,11 @@ async fn send(ws: &mut Ws, v: Value) {
 }
 
 async fn recv(ws: &mut Ws) -> Value {
-    let msg = tokio::time::timeout(Duration::from_secs(3), ws.next()).await.expect("timeout").unwrap().unwrap();
+    let msg = tokio::time::timeout(Duration::from_secs(3), ws.next())
+        .await
+        .expect("timeout")
+        .unwrap()
+        .unwrap();
     serde_json::from_str(msg.to_text().unwrap()).unwrap()
 }
 
@@ -58,13 +65,20 @@ async fn create_join_relay_reconnect() {
     assert_eq!(w["isHost"], true);
     let code = w["code"].as_str().unwrap().to_string();
     assert_eq!(code.len(), 4);
-    assert_eq!(w["joinUrl"], format!("http://127.0.0.1:{}/?room={}", addr.port(), code));
+    assert_eq!(
+        w["joinUrl"],
+        format!("http://127.0.0.1:{}/?room={}", addr.port(), code)
+    );
     let lobby = recv_type(&mut host, "lobby").await;
     assert_eq!(lobby["players"].as_array().unwrap().len(), 1);
 
     // Joiner joins; both sides see a 2-player lobby.
     let mut joiner = connect(addr).await;
-    send(&mut joiner, json!({"type":"join","code":code.to_lowercase(),"name":"Kajal"})).await;
+    send(
+        &mut joiner,
+        json!({"type":"join","code":code.to_lowercase(),"name":"Kajal"}),
+    )
+    .await;
     let jw = recv_type(&mut joiner, "welcome").await;
     assert_eq!(jw["isHost"], false);
     let joiner_id = jw["playerId"].as_str().unwrap().to_string();
@@ -76,14 +90,22 @@ async fn create_join_relay_reconnect() {
     assert_eq!(l["players"][1]["connected"], true);
 
     // Joiner intent goes to the host only, stamped with the sender id.
-    send(&mut joiner, json!({"type":"intent","action":"move","token":2})).await;
+    send(
+        &mut joiner,
+        json!({"type":"intent","action":"move","token":2}),
+    )
+    .await;
     let i = recv_type(&mut host, "intent").await;
     assert_eq!(i["from"], joiner_id);
     assert_eq!(i["action"], "move");
     assert_eq!(i["token"], 2);
 
     // Host state fans out to the joiner, not back to the host.
-    send(&mut host, json!({"type":"state","state":{"turn":7},"events":[{"type":"rolled"}],"seats":{"x":"red"}})).await;
+    send(
+        &mut host,
+        json!({"type":"state","state":{"turn":7},"events":[{"type":"rolled"}],"seats":{"x":"red"}}),
+    )
+    .await;
     let s = recv_type(&mut joiner, "state").await;
     assert_eq!(s["state"]["turn"], 7);
     assert_eq!(s["seats"]["x"], "red");
@@ -91,11 +113,22 @@ async fn create_join_relay_reconnect() {
     assert_eq!(recv(&mut host).await["type"], "pong"); // nothing else was queued for the host
 
     // Joiners may not publish state.
-    send(&mut joiner, json!({"type":"state","state":{},"events":[],"seats":{}})).await;
-    assert_eq!(recv_type(&mut joiner, "error").await["message"], "only the host may publish state");
+    send(
+        &mut joiner,
+        json!({"type":"state","state":{},"events":[],"seats":{}}),
+    )
+    .await;
+    assert_eq!(
+        recv_type(&mut joiner, "error").await["message"],
+        "only the host may publish state"
+    );
 
     // Hints relay to everyone else.
-    send(&mut host, json!({"type":"hint","kind":"rolling","color":"red"})).await;
+    send(
+        &mut host,
+        json!({"type":"hint","kind":"rolling","color":"red"}),
+    )
+    .await;
     assert_eq!(recv_type(&mut joiner, "hint").await["color"], "red");
 
     // Joiner drops: host sees connected=false. Reconnect restores the seat and replays the last state.
@@ -103,7 +136,11 @@ async fn create_join_relay_reconnect() {
     let l = recv_type(&mut host, "lobby").await;
     assert_eq!(l["players"][1]["connected"], false);
     let mut again = connect(addr).await;
-    send(&mut again, json!({"type":"reconnect","code":code,"seatToken":joiner_token})).await;
+    send(
+        &mut again,
+        json!({"type":"reconnect","code":code,"seatToken":joiner_token}),
+    )
+    .await;
     let w2 = recv_type(&mut again, "welcome").await;
     assert_eq!(w2["playerId"], joiner_id);
     let replay = recv_type(&mut again, "state").await;
@@ -118,13 +155,29 @@ async fn bad_hello_and_unknown_room() {
     let addr = start().await;
     let mut ws = connect(addr).await;
     send(&mut ws, json!({"type":"join","code":"ZZZZ","name":"x"})).await;
-    assert_eq!(recv_type(&mut ws, "error").await["message"], "room not found");
+    assert_eq!(
+        recv_type(&mut ws, "error").await["message"],
+        "room not found"
+    );
     send(&mut ws, json!({"type":"intent","action":"roll"})).await;
-    assert!(recv_type(&mut ws, "error").await["message"].as_str().unwrap().contains("hello"));
+    assert!(recv_type(&mut ws, "error").await["message"]
+        .as_str()
+        .unwrap()
+        .contains("hello"));
     send(&mut ws, json!({"nonsense":1})).await;
-    assert!(recv_type(&mut ws, "error").await["message"].as_str().unwrap().contains("bad message"));
-    send(&mut ws, json!({"type":"reconnect","code":"ZZZZ","seatToken":"t"})).await;
-    assert_eq!(recv_type(&mut ws, "error").await["message"], "room not found");
+    assert!(recv_type(&mut ws, "error").await["message"]
+        .as_str()
+        .unwrap()
+        .contains("bad message"));
+    send(
+        &mut ws,
+        json!({"type":"reconnect","code":"ZZZZ","seatToken":"t"}),
+    )
+    .await;
+    assert_eq!(
+        recv_type(&mut ws, "error").await["message"],
+        "room not found"
+    );
 }
 
 #[tokio::test]
@@ -132,7 +185,10 @@ async fn room_fills_at_four() {
     let addr = start().await;
     let mut host = connect(addr).await;
     send(&mut host, json!({"type":"create","name":"H"})).await;
-    let code = recv_type(&mut host, "welcome").await["code"].as_str().unwrap().to_string();
+    let code = recv_type(&mut host, "welcome").await["code"]
+        .as_str()
+        .unwrap()
+        .to_string();
     let mut keep = vec![];
     for n in ["A", "B", "C"] {
         let mut j = connect(addr).await;
@@ -142,5 +198,8 @@ async fn room_fills_at_four() {
     }
     let mut extra = connect(addr).await;
     send(&mut extra, json!({"type":"join","code":code,"name":"D"})).await;
-    assert_eq!(recv_type(&mut extra, "error").await["message"], "room is full");
+    assert_eq!(
+        recv_type(&mut extra, "error").await["message"],
+        "room is full"
+    );
 }

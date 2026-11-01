@@ -26,7 +26,10 @@ use tracing::info;
 struct Assets;
 
 #[derive(Parser, Debug, Clone)]
-#[command(name = "ludo-server", about = "LAN relay + static server for Offline Multiplayer Ludo")]
+#[command(
+    name = "ludo-server",
+    about = "LAN relay + static server for Offline Multiplayer Ludo"
+)]
 pub struct Args {
     /// Port to listen on.
     #[arg(long, default_value_t = 7878)]
@@ -68,7 +71,10 @@ pub fn detect_lan_ip() -> IpAddr {
         return ip;
     }
     if let Ok(ifs) = local_ip_address::list_afinet_netifas() {
-        if let Some((_, ip)) = ifs.into_iter().find(|(_, ip)| ip.is_ipv4() && !ip.is_loopback()) {
+        if let Some((_, ip)) = ifs
+            .into_iter()
+            .find(|(_, ip)| ip.is_ipv4() && !ip.is_loopback())
+        {
             return ip;
         }
     }

@@ -17,7 +17,7 @@ See [PLAN.md](./PLAN.md) for the architecture, rules spec and milestone plan.
 | M5 Audio + haptics | done |
 | M6 Bots, debug toolbar, i18n | done |
 | M7 Rust server + LAN | done |
-| M8 Tauri + CI/APK | next |
+| M8 Tauri + CI/APK | done (CI-verified builds) |
 
 ## Develop
 
@@ -50,13 +50,31 @@ cd server && cargo test                      # room registry + WebSocket relay
 cd ui && npm run lan-check                   # two headless browsers through the relay
 ```
 
+## Android APK and desktop builds
+
+Tauri v2 wraps the web app and starts the Rust server inside the app, so the
+host phone needs nothing else. Builds run in GitHub Actions:
+
+| Workflow | Trigger | Produces |
+|----------|---------|----------|
+| `ci.yml` | every push / PR | lint, unit tests, Rust tests, headless browser checks, screenshots |
+| `pages.yml` | push to `main` | pass-and-play web demo on GitHub Pages (installable PWA) |
+| `release.yml` | tag `v*` | Android APKs (arm64 + armv7) and Linux AppImage/deb attached to the release |
+
+See [tauri/README.md](./tauri/README.md) for local builds and Android caveats.
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0     # builds and publishes the APK
+```
+
 ## Layout
 
 ```
 ui/        Vue 3 + Vite + Tailwind v4 + TypeScript (strict)
   src/engine/   pure rules engine, no DOM, fully unit-tested
 server/    Rust axum WebSocket relay + embedded static UI
-tauri/     Tauri v2 Android/desktop wrapper (M8)
+tauri/     Tauri v2 Android/desktop wrapper (embeds the server)
+.github/   CI, GitHub Pages deploy, tagged releases
 ```
 
 ## License

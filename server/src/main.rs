@@ -5,7 +5,10 @@ use std::net::SocketAddr;
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive("ludo_server=info".parse().unwrap()))
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_default_env()
+                .add_directive("ludo_server=info".parse().unwrap()),
+        )
         .init();
     let args = Args::parse();
     let app = build_state(&args);
