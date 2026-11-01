@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useGameStore } from '@/stores/game'
 import { useSettingsStore } from '@/stores/settings'
+import { useNetStore } from '@/stores/net'
 import { useGameFlow } from '@/composables/useGameFlow'
 import { useAnimStore } from '@/stores/anim'
 import { useFeedback } from '@/composables/useFeedback'
@@ -16,29 +17,65 @@ import DebugToolbar from '@/components/hud/DebugToolbar.vue'
 import EventBanner from '@/components/hud/EventBanner.vue'
 import LobbyModal from '@/components/hud/LobbyModal.vue'
 import SetupScreen from '@/components/screens/SetupScreen.vue'
+import LobbyScreen from '@/components/screens/LobbyScreen.vue'
 import { COLORS, type NewPlayerSpec, type PlayerColor } from '@/engine'
+import type { SeatMap } from '@/net/protocol'
 
 const game = useGameStore()
 const settings = useSettingsStore()
+const net = useNetStore()
 const flow = useGameFlow()
 const anim = useAnimStore()
 const { t, displayName } = useI18n()
 useFeedback()
 
-type Screen = 'setup' | 'game'
+type Screen = 'setup' | 'lobby' | 'game'
 const screen = ref<Screen>('setup')
 const lobbyOpen = ref(false)
+const lobbyBots = ref(0)
 const showDebug = computed(() => DEBUG || settings.debugToolbar)
+const prefillRoom = new URLSearchParams(location.search).get('room')?.toUpperCase() ?? ''
+const rejoinCode = ref(net.savedSeat()?.code ?? '')
 
-function start(players: NewPlayerSpec[]) {
+/** Seat colours for N players: 2P is the classic diagonal. */
+const SEATS: Record<number, PlayerColor[]> = {
+  2: ['red', 'yellow'],
+  3: ['red', 'green', 'yellow'],
+  4: [...COLORS],
+}
+
+function beginGame(players: NewPlayerSpec[], seats: SeatMap = {}) {
   anim.trigger('tap')
   flow.cancel()
+  net.setSeats(seats)
   game.newGame({
     players,
     settings: { blockingRule: settings.blockingRule, endAtFirstWinner: settings.endAtFirstWinner, autoMoveSingle: settings.autoMoveSingle },
   })
   screen.value = 'game'
   flow.kick()
+}
+
+/** Pass & play from the setup screen. */
+function start(players: NewPlayerSpec[]) {
+  if (net.active) net.leave()
+  beginGame(players)
+}
+
+/** LAN host: seats = host, joiners in lobby order, then bots. */
+function startLan() {
+  const humans = net.players
+  const n = Math.min(4, humans.length + lobbyBots.value)
+  if (n < 2) return
+  const colors = SEATS[n]
+  const seats: SeatMap = {}
+  const players: NewPlayerSpec[] = []
+  humans.slice(0, n).forEach((p, i) => {
+    seats[p.id] = colors[i]
+    players.push({ color: colors[i], name: p.name })
+  })
+  for (let i = humans.length; i < n; i++) players.push({ color: colors[i], name: `${t('bot')} ${i - humans.length + 1}`, isBot: true })
+  beginGame(players, seats)
 }
 
 function resume() {
@@ -48,23 +85,79 @@ function resume() {
   }
 }
 
+function hostRoom(name: string) {
+  net.host(name)
+  lobbyBots.value = 0
+  screen.value = 'lobby'
+}
+
+function joinRoom(code: string, name: string) {
+  net.join(code, name)
+  screen.value = 'lobby'
+}
+
+/** Reattach to a saved LAN seat. The host also restores its saved game and re-broadcasts it. */
+function rejoin() {
+  if (!net.reconnect()) return
+  const saved = net.savedSeat()
+  if (saved?.isHost && game.resume()) {
+    screen.value = 'game'
+    flow.kick()
+  } else {
+    screen.value = 'lobby'
+  }
+}
+
 /** Rematch with the same seats, names and bots as the game that just ended. */
 function again() {
   const players: NewPlayerSpec[] = game.players.map((p) => ({ color: p.color, name: p.name, isBot: p.isBot }))
-  if (players.length) start(players)
+  if (players.length) beginGame(players, net.seats)
   else toMenu()
 }
 
 function restart(count: 2 | 4) {
-  const seats: PlayerColor[] = count === 2 ? ['red', 'yellow'] : [...COLORS]
-  start(seats.map((color) => ({ color, name: game.playerByColor(color)?.name, isBot: game.playerByColor(color)?.isBot ?? false })))
+  const seats = SEATS[count]
+  beginGame(seats.map((color) => ({ color, name: game.playerByColor(color)?.name, isBot: game.playerByColor(color)?.isBot ?? false })))
 }
 
 function toMenu() {
   flow.cancel()
   game.quit()
+  net.leave()
+  rejoinCode.value = ''
+  lobbyOpen.value = false
   screen.value = 'setup'
 }
+
+// A joiner enters the game as soon as the host's state arrives; a host re-broadcasts on reconnect.
+watch(
+  () => game.state,
+  (s) => {
+    if (s && net.isJoiner && screen.value !== 'game') screen.value = 'game'
+  },
+)
+watch(
+  () => net.connected,
+  (ok) => {
+    if (ok && net.isHost && game.state) net.broadcastState(game.state, [])
+  },
+)
+// If the server rejects a join (bad code, full room), fall back to the setup screen with the error shown.
+watch(
+  () => net.error,
+  (e) => {
+    if (e && screen.value === 'lobby' && !net.playerId) {
+      net.leave()
+      lanError.value = e
+      screen.value = 'setup'
+    }
+  },
+)
+const lanError = ref('')
+
+onMounted(() => {
+  if (prefillRoom) history.replaceState(null, '', location.pathname + (DEBUG ? '?debug' : ''))
+})
 
 const seat = (color: PlayerColor) => computed(() => game.playerByColor(color))
 const red = seat('red')
@@ -78,6 +171,7 @@ const status = computed(() => {
   if (!me || game.isOver) return ''
   const name = displayName(me)
   if (me.isBot) return t('botThinking', { name })
+  if (!flow.localHumanTurn.value) return t('turnOf', { name })
   if (game.phase === 'move') return t('chooseToken')
   return `${t('turnOf', { name })} · ${t('tapDice')}`
 })
@@ -89,16 +183,29 @@ const cardProps = (color: PlayerColor) => ({
   rolling: activeColor.value === color && flow.rolling.value,
 })
 
-/** Placeholder until the Rust server (M7) provides the real room. */
-const lobbyUrl = computed(() => `${location.protocol}//${location.host}/?room=LUDO`)
+const topMode = computed(() => (net.isHost ? 'lan-host' : net.isJoiner ? 'lan-join' : 'pass-play'))
+const lobbyUrl = computed(() => net.joinUrl || `${location.protocol}//${location.host}/?room=LUDO`)
 </script>
 
 <template>
   <SetupScreen
     v-if="screen === 'setup'"
     :can-resume="game.hasSave"
+    :rejoin-code="rejoinCode"
+    :prefill-room="prefillRoom"
+    :lan-error="lanError"
     @start="start"
     @resume="resume"
+    @host="hostRoom"
+    @join="joinRoom"
+    @rejoin="rejoin"
+  />
+
+  <LobbyScreen
+    v-else-if="screen === 'lobby'"
+    v-model:bots="lobbyBots"
+    @start="startLan"
+    @leave="toMenu"
   />
 
   <div
@@ -107,14 +214,17 @@ const lobbyUrl = computed(() => `${location.protocol}//${location.host}/?room=LU
     :data-phase="game.phase"
     :data-turn="activeColor"
     :data-busy="flow.busy.value"
+    :data-mode="net.mode"
   >
     <TopBar
-      mode="pass-play"
+      :mode="topMode"
+      :room-label="net.code ? `${t('room')} ${net.code}` : undefined"
+      :connected="net.connected"
       :sound="settings.sound"
       :haptics="settings.haptics"
       @toggle-sound="settings.sound = !settings.sound"
       @toggle-haptics="settings.haptics = !settings.haptics"
-      @open-room="toMenu"
+      @open-room="net.active ? (lobbyOpen = true) : toMenu()"
     />
 
     <div class="table">
@@ -177,7 +287,7 @@ const lobbyUrl = computed(() => `${location.protocol}//${location.host}/?room=LU
     </div>
 
     <DebugToolbar
-      v-if="showDebug"
+      v-if="showDebug && !net.isJoiner"
       :can-roll="!flow.busy.value && game.phase === 'roll'"
       @force="flow.rollForced"
       @restart="restart"
@@ -187,8 +297,9 @@ const lobbyUrl = computed(() => `${location.protocol}//${location.host}/?room=LU
     <LobbyModal
       :open="lobbyOpen"
       :join-url="lobbyUrl"
-      room-code="LUDO"
-      preview
+      :room-code="net.code || 'LUDO'"
+      :preview="!net.active"
+      :players="net.players"
       @close="lobbyOpen = false"
     />
 
@@ -196,6 +307,7 @@ const lobbyUrl = computed(() => `${location.protocol}//${location.host}/?room=LU
       v-if="game.isOver && game.state"
       :ranking="game.state.ranking"
       :players="game.players"
+      :can-restart="!net.isJoiner"
       @again="again"
       @menu="toMenu"
     />

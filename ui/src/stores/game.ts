@@ -59,8 +59,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function newGame(opts: NewGameOptions): void {
-    state.value = createGame(opts)
-    lastEvents.value = []
+    commit({ state: createGame(opts), events: [] })
   }
 
   function roll(): GameEvent[] {

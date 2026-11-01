@@ -16,8 +16,8 @@ See [PLAN.md](./PLAN.md) for the architecture, rules spec and milestone plan.
 | M4 Animations | done |
 | M5 Audio + haptics | done |
 | M6 Bots, debug toolbar, i18n | done |
-| M7 Rust server + LAN | next |
-| M8 Tauri + CI/APK | |
+| M7 Rust server + LAN | done |
+| M8 Tauri + CI/APK | next |
 
 ## Develop
 
@@ -31,12 +31,31 @@ npm run lint
 npm run build
 ```
 
+## LAN play (one phone hosts, friends join from any browser)
+
+```bash
+cd ui && npm run build          # the server embeds ui/dist
+cd ../server && cargo run --release -- --port 7878
+```
+
+The server prints a LAN URL. Open it on the host phone, tap **Host a room**,
+and let friends scan the QR (or type the 4-letter code) from any phone on the
+same Wi-Fi or hotspot. The host device runs the rules; joiners send intents.
+Seats survive reloads and screen-locks for 10 minutes.
+
+Checks:
+
+```bash
+cd server && cargo test                      # room registry + WebSocket relay
+cd ui && npm run lan-check                   # two headless browsers through the relay
+```
+
 ## Layout
 
 ```
 ui/        Vue 3 + Vite + Tailwind v4 + TypeScript (strict)
   src/engine/   pure rules engine, no DOM, fully unit-tested
-server/    Rust axum WebSocket relay (M7)
+server/    Rust axum WebSocket relay + embedded static UI
 tauri/     Tauri v2 Android/desktop wrapper (M8)
 ```
 

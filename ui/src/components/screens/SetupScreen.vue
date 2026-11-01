@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { Bot, Languages, Play, RotateCcw, User, Users } from 'lucide-vue-next'
+import { Bot, Languages, LogIn, Play, RotateCcw, User, Users, Wifi } from 'lucide-vue-next'
 import { COLORS, type NewPlayerSpec, type PlayerColor } from '@/engine'
 import { colorVars } from '@/utils/colors'
 import { useSettingsStore } from '@/stores/settings'
 import { useI18n } from '@/i18n'
 
-const props = defineProps<{ canResume: boolean }>()
-const emit = defineEmits<{ start: [players: NewPlayerSpec[]]; resume: [] }>()
+const props = defineProps<{ canResume: boolean; rejoinCode?: string; prefillRoom?: string; lanError?: string }>()
+const emit = defineEmits<{
+  start: [players: NewPlayerSpec[]]
+  resume: []
+  host: [name: string]
+  join: [code: string, name: string]
+  rejoin: []
+}>()
 
 const settings = useSettingsStore()
 const { t, lang, toggleLang, colorName } = useI18n()
@@ -22,6 +28,9 @@ const seatsFor: Record<number, PlayerColor[]> = {
 const seats = computed(() => seatsFor[count.value])
 
 const names = reactive<Record<PlayerColor, string>>({ red: '', green: '', yellow: '', blue: '' })
+const lanName = ref('')
+const lanCode = ref(props.prefillRoom ?? '')
+const canJoin = computed(() => lanCode.value.trim().length === 4)
 const bots = reactive<Record<PlayerColor, boolean>>({ red: false, green: false, yellow: false, blue: false })
 
 function start() {
@@ -53,6 +62,70 @@ function start() {
       <RotateCcw :size="16" />
       {{ t('resume') }}
     </button>
+    <button
+      v-if="props.rejoinCode"
+      type="button"
+      class="btn btn--ghost"
+      data-action="rejoin"
+      @click="emit('rejoin')"
+    >
+      <Wifi :size="16" />
+      {{ t('rejoin', { code: props.rejoinCode }) }}
+    </button>
+
+    <div
+      class="lan"
+      :class="{ 'lan--focus': props.prefillRoom }"
+      data-lan
+    >
+      <label class="setup__label"><Wifi :size="14" /> {{ t('lanSection') }}</label>
+      <input
+        v-model.trim="lanName"
+        class="lan__input"
+        :placeholder="t('yourName')"
+        maxlength="12"
+        data-lan-name
+        autocomplete="off"
+      >
+      <div class="lan__row">
+        <button
+          type="button"
+          class="lan__btn lan__btn--host"
+          data-action="lan-host"
+          @click="emit('host', lanName)"
+        >
+          <Wifi :size="15" />
+          {{ t('hostWifi') }}
+        </button>
+        <input
+          v-model.trim="lanCode"
+          class="lan__input lan__input--code"
+          :placeholder="t('roomCodePlaceholder')"
+          maxlength="4"
+          data-lan-code
+          autocapitalize="characters"
+          autocomplete="off"
+          @input="lanCode = lanCode.toUpperCase()"
+        >
+        <button
+          type="button"
+          class="lan__btn"
+          :disabled="!canJoin"
+          data-action="lan-join"
+          @click="emit('join', lanCode, lanName)"
+        >
+          <LogIn :size="15" />
+          {{ t('joinRoom') }}
+        </button>
+      </div>
+      <p
+        v-if="props.lanError"
+        class="lan__error"
+        data-lan-error
+      >
+        {{ t('lanError', { message: props.lanError }) }}
+      </p>
+    </div>
 
     <div class="setup__group">
       <label class="setup__label"><Users :size="14" /> {{ t('players') }}</label>
@@ -272,6 +345,72 @@ function start() {
   color: #3b2a00;
   background: linear-gradient(180deg, #ffd95c, #f5b800);
   border-color: #ffe68a;
+}
+.lan {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.7rem;
+  border-radius: 1rem;
+  background: rgba(43, 111, 230, 0.1);
+  border: 1px solid rgba(134, 177, 255, 0.3);
+}
+.lan--focus {
+  box-shadow: 0 0 0 2px rgba(134, 177, 255, 0.5), 0 0 24px rgba(43, 111, 230, 0.35);
+}
+.lan__row {
+  display: grid;
+  grid-template-columns: 1fr 5.2rem auto;
+  gap: 0.4rem;
+}
+.lan__input {
+  min-width: 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.7rem;
+  color: #fff;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  outline: 0;
+}
+.lan__input--code {
+  text-align: center;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+.lan__input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: normal;
+  text-transform: none;
+  font-weight: 500;
+}
+.lan__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
+}
+.lan__btn--host {
+  color: #0d1b3a;
+  background: linear-gradient(180deg, #86b1ff, #2b6fe6);
+  border-color: #a9c6ff;
+}
+.lan__btn:disabled {
+  opacity: 0.4;
+}
+.lan__error {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #ff8a8e;
 }
 .chk {
   display: flex;

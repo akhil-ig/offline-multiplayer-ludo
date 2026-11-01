@@ -4,7 +4,7 @@ import type { Player, PlayerColor } from '@/engine'
 import { colorVars } from '@/utils/colors'
 import { useI18n } from '@/i18n'
 
-const props = defineProps<{ ranking: PlayerColor[]; players: Player[] }>()
+const props = defineProps<{ ranking: PlayerColor[]; players: Player[]; canRestart?: boolean }>()
 const emit = defineEmits<{ again: []; menu: [] }>()
 
 const { t, displayName } = useI18n()
@@ -41,6 +41,7 @@ const MEDALS = ['🥇', '🥈', '🥉', '4️⃣']
       </ol>
       <div class="win__actions">
         <button
+          v-if="props.canRestart !== false"
           type="button"
           class="btn btn--primary"
           data-action="again"
@@ -65,7 +66,7 @@ const MEDALS = ['🥇', '🥈', '🥉', '4️⃣']
 .win {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 55;
   display: grid;
   place-items: center;
   padding: 1rem;

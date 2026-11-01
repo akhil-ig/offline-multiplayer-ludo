@@ -2,12 +2,14 @@
 import { X, Wifi } from 'lucide-vue-next'
 import QrcodeVue from 'qrcode.vue'
 import { useI18n } from '@/i18n'
+import type { LobbyPlayer } from '@/net/protocol'
 
 const props = defineProps<{
   open: boolean
   joinUrl: string
   roomCode: string
   preview?: boolean
+  players?: LobbyPlayer[]
 }>()
 const emit = defineEmits<{ close: [] }>()
 const { t } = useI18n()
@@ -53,6 +55,22 @@ const { t } = useI18n()
           <span class="modal__value">{{ props.roomCode }}</span>
         </div>
         <code class="modal__url">{{ props.joinUrl }}</code>
+        <ul
+          v-if="props.players?.length"
+          class="modal__players"
+        >
+          <li
+            v-for="p in props.players"
+            :key="p.id"
+            :class="{ 'modal__player--off': !p.connected }"
+          >
+            <span
+              class="modal__dot"
+              :class="{ 'modal__dot--on': p.connected }"
+            />
+            {{ p.name }}
+          </li>
+        </ul>
         <p
           v-if="props.preview"
           class="modal__preview"
@@ -144,6 +162,32 @@ const { t } = useI18n()
   opacity: 0.7;
   word-break: break-all;
 }
+.modal__players {
+  list-style: none;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+}
+.modal__players li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.modal__player--off { opacity: 0.5; }
+.modal__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+  background: #ffd95c;
+}
+.modal__dot--on { background: #6fe39b; }
 .modal__preview {
   margin: 0.8rem 0 0;
   font-size: 0.72rem;

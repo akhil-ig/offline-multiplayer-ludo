@@ -5,6 +5,7 @@ import { useI18n } from '@/i18n'
 const props = defineProps<{
   mode: 'pass-play' | 'lan-host' | 'lan-join'
   roomLabel?: string
+  connected?: boolean
   sound: boolean
   haptics: boolean
 }>()
@@ -30,6 +31,12 @@ const { t, lang, toggleLang } = useI18n()
         :size="14"
       />
       <span>{{ props.mode === 'pass-play' ? t('passPlay') : props.roomLabel ?? t('lan') }}</span>
+      <span
+        v-if="props.mode !== 'pass-play'"
+        class="pill__dot"
+        :class="{ 'pill__dot--off': !props.connected }"
+        data-conn
+      />
     </button>
     <h1 class="title">
       LUDO
@@ -102,6 +109,21 @@ const { t, lang, toggleLang } = useI18n()
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.pill__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #6fe39b;
+  box-shadow: 0 0 6px #6fe39b;
+}
+.pill__dot--off {
+  background: #ffd95c;
+  box-shadow: 0 0 6px #ffd95c;
+  animation: blink 1s ease-in-out infinite;
+}
+@keyframes blink {
+  50% { opacity: 0.3; }
 }
 .title {
   margin: 0;
